@@ -2,11 +2,9 @@
 package main
 
 import (
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"github.com/op/go-logging"
-	"io/ioutil"
 	"os"
 )
 
@@ -16,24 +14,17 @@ var profileFile string
 
 func init() {
 	flag.StringVar(&profileFile, "profile", "", "path to stress profile")
+	logFormat := logging.MustStringFormatter("%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level}%{color:reset} %{message}")
+	logging.SetBackend(logging.NewBackendFormatter(logging.NewLogBackend(os.Stderr, "", 0), logFormat))
 }
 
 func main() {
 	flag.Parse()
-	if profileFile == "" {
-		fmt.Fprintln(os.Stderr, "profile flag not passed")
-		return
-	}
-	profileData, err := ioutil.ReadFile(profileFile)
+	profile, err := loadProfile(profileFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading profile %s: %s\n", profileFile, err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	profile := Profile{}
-	err = xml.Unmarshal(profileData, &profile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading profile %s: %s\n", profileFile, err)
-		return
-	}
+	
 	fmt.Printf("%+v\n", profile)
 }

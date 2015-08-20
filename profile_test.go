@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/xml"
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"regexp"
 	"testing"
+	"time"
 )
 
 func TestURL(t *testing.T) {
@@ -13,7 +15,7 @@ func TestURL(t *testing.T) {
 		Convey("No tokens should return the given base URL", func() {
 			out := URL{}
 			xml.Unmarshal([]byte(`<url base="http://example.org:7789/stress/PUT" />`), &out)
-			So(out.Get(), ShouldEqual, "http://example.org:7789/stress/PUT")
+			So(out.Generate(), ShouldEqual, "http://example.org:7789/stress/PUT")
 			So(out.Tokens, ShouldEqual, nil)
 		})
 
@@ -23,11 +25,11 @@ func TestURL(t *testing.T) {
 				So(u.Validate, ShouldPanic)
 			})
 			Convey("Choices have a min and max", func() {
-				u := URLToken{Choices: "Val1|Val2", Token: "test", MinLength:1}
+				u := URLToken{Choices: "Val1|Val2", Token: "test", MinLength: 1}
 				So(u.Validate, ShouldNotPanic)
-				u = URLToken{Choices: "Val1|Val2", Token: "test", MaxLength:1}
+				u = URLToken{Choices: "Val1|Val2", Token: "test", MaxLength: 1}
 				So(u.Validate, ShouldNotPanic)
-				u = URLToken{Choices: "Val1|Val2", Token: "test", MinLength:1, MaxLength:2}
+				u = URLToken{Choices: "Val1|Val2", Token: "test", MinLength: 1, MaxLength: 2}
 				So(u.Validate, ShouldNotPanic)
 			})
 			Convey("Token is not defined", func() {
@@ -63,7 +65,6 @@ func TestURL(t *testing.T) {
 					<token token="token3" pattern="num" min="5" max="10" />
 					<token token="token4" pattern="alphanum" min="5" max="10" />
 				</url>`
-			//matched, err := regexp.MatchString("http://example.org:1598/expensive/token1-[A-Za-z]{5,10}/token3/token4", "http://example.org:1598/expensive/token1-token/token3/token4")
 			out := URL{}
 			xml.Unmarshal([]byte(example), &out)
 			So(out.Tokens, ShouldNotEqual, nil)
@@ -101,7 +102,39 @@ func TestURL(t *testing.T) {
 					So(err, ShouldEqual, nil)
 					So(matched, ShouldEqual, true)
 				}
+			}
+			So(out.Validate, ShouldNotPanic)
+			matched, err := regexp.MatchString("http://example.org:1598/expensive/(Val1|Val2)-[A-Za-z]{5,10}/[0-9]{5,10}/[A-Za-z0-9]{5,10}", out.Generate())
+			So(err, ShouldEqual, nil)
+			So(matched, ShouldEqual, true)
+		})
+	})
+}
 
+func TestLoadProfile(t *testing.T) {
+	Convey("Loading profiles works as expected", t, func() {
+		Convey("Loading nothing", func() {
+			_, err := loadProfile("")
+			So(err, ShouldNotEqual, nil)
+		})
+		Convey("Loading a non existing file", func() {
+			_, err := loadProfile("this_file_does_not_exist")
+			So(err, ShouldNotEqual, nil)
+		})
+		Convey("Loading the basic example", func() {
+			profile, err := loadProfile("./docs/examples/basic.xml")
+			So(err, ShouldEqual, nil)
+			// Let's now check that the basic example was loaded correctly.
+			So(profile.Name, ShouldEqual, "Basic example")
+			So(profile.UID, ShouldEqual, "1")
+			numTests := 0
+			for _, test := range profile.Tests {
+				numTests++
+				fmt.Printf("\n%+v\n", test)
+				switch test.Name {
+				case "Example 1":
+					So(test.CriticalTh.Duration, ShouldEqual, time.Second*1)
+				}
 			}
 		})
 	})

@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <sg name="Basic example" uid="1">
 	<!-- Each of the tests will be ran sequentially. -->
-	<test name="Example">
+	<test name="Example 1" critical="1s" warning="750ms">
 		<description>This is an example. Each of the requests will be
 			sequential.
 		</description>
-		<gauge critical="1s" warning="750ms" />
 
 		<request method="post" responseType="json" number="1"
 			concurrency="1">

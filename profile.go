@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"github.com/jmcvetta/randutil"
+	"io/ioutil"
 	"math"
 	"strconv"
 	"strings"
@@ -15,15 +17,14 @@ type duration struct {
 	time.Duration
 }
 
-func (dur *duration) UnmarshalXML(d *xml.Decoder, el xml.StartElement) (err error) {
-	var v string
-	d.DecodeElement(&v, &el)
-	parsed, err := time.ParseDuration(v)
+// UnmarshalXMLAttr unmarshals a duration.
+func (dur *duration) UnmarshalXMLAttr(attr xml.Attr) (err error) {
+	parsed, err := time.ParseDuration(attr.Value)
 	if err != nil {
 		return
 	}
 	*dur = duration{parsed}
-	return
+	return nil
 }
 
 // Profile stores the whole test profile
@@ -37,8 +38,8 @@ type Profile struct {
 type StressTest struct {
 	Name        string        `xml:"name,attr"`
 	Description string        `xml:"description"`
-	CriticalTh  duration      `xml:"gauge>critical"`
-	WarningTh   duration      `xml:"gauge>warning"`
+	CriticalTh  duration      `xml:"critical,attr"`
+	WarningTh   duration      `xml:"warning,attr"`
 	Requests    []*RequestXML `xml:"request"`
 }
 
@@ -58,8 +59,18 @@ type URL struct {
 	Tokens *[]URLToken `xml:"token"`
 }
 
-// Get returns a new URL based on the base and the tokens.
-func (u *URL) Get() (url string) {
+// Validate confirms the validity of a URL.
+func (u *URL) Validate() {
+	for _, tok := range *u.Tokens {
+		tok.Validate()
+		if !strings.Contains(u.Base, tok.Token) {
+			panic(fmt.Errorf("cannot find token %s in base %s.", tok.Token, u.Base))
+		}
+	}
+}
+
+// Generate returns a new URL based on the base and the tokens.
+func (u *URL) Generate() (url string) {
 	url = u.Base
 	if u.Tokens != nil {
 		for _, tok := range *u.Tokens {
@@ -69,6 +80,7 @@ func (u *URL) Get() (url string) {
 	return
 }
 
+// URLToken handles the generate of tokens for the URL.
 type URLToken struct {
 	Token     string `xml:"token,attr"`
 	Choices   string `xml:"choices,attr"`
@@ -127,4 +139,19 @@ func (t *URLToken) Generate() (r string) {
 type Tokenized struct {
 	Response string `xml:"responseToken,attr"`
 	Header   string `xml:"headerToken,attr"`
+}
+
+func loadProfile(profileFile string) (*Profile, error) {
+	if profileFile == "" {
+		return nil, errors.New("profile filename is empty")
+	}
+	profileData, err := ioutil.ReadFile(profileFile)
+	if err != nil {
+		return nil, fmt.Errorf("error loading profile %s: %s\n", profileFile, err)
+	}
+	profile := Profile{}
+	if err = xml.Unmarshal(profileData, &profile); err != nil {
+		return nil, fmt.Errorf("error loading profile %s: %s\n", profileFile, err)
+	}
+	return &profile, nil
 }
