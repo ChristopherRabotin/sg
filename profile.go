@@ -153,5 +153,20 @@ func loadProfile(profileFile string) (*Profile, error) {
 	if err = xml.Unmarshal(profileData, &profile); err != nil {
 		return nil, fmt.Errorf("error loading profile %s: %s\n", profileFile, err)
 	}
+	// Let's set the parent requests on all children.
+	for _, test := range profile.Tests {
+		for _, request := range test.Requests {
+			setParentRequest(nil, request.Children)
+		}
+	}
 	return &profile, nil
+}
+
+func setParentRequest(parent *RequestXML, children *[]RequestXML) {
+	if children != nil {
+		for _, child := range *children {
+			child.Parent = parent
+			setParentRequest(&child, child.Children)
+		}
+	}
 }

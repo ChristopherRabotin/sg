@@ -134,6 +134,8 @@ func TestLoadProfile(t *testing.T) {
 				switch test.Name {
 				case "Example 1":
 					So(test.CriticalTh.Duration, ShouldEqual, time.Second*1)
+					So(test.WarningTh.Duration, ShouldEqual, time.Millisecond*750)
+					// Let's check the requests.
 				}
 			}
 		})
