@@ -1,4 +1,6 @@
-<sg>
+<?xml version="1.0" encoding="UTF-8"?>
+<sg name="Basic example" uid="1">
+	<!-- Each of the tests will be ran sequentially. -->
 	<test name="Example">
 		<description>This is an example. Each of the requests will be
 			sequential.

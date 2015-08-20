@@ -28,7 +28,9 @@ func (dur *duration) UnmarshalXML(d *xml.Decoder, el xml.StartElement) (err erro
 
 // Profile stores the whole test profile
 type Profile struct {
-	Tests []*StressTest `xml:"sg>test"`
+	Name  string        `xml:"name,attr"`
+	UID   string        `xml:"uid,attr"`
+	Tests []*StressTest `xml:"test"`
 }
 
 // StressTest stores the one stress test.
