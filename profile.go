@@ -99,7 +99,7 @@ func (t *URLToken) Validate() {
 			panic("min or max is negative in URL Token")
 		}
 		if t.MinLength > t.MaxLength {
-			log.Warning("min definition is greater than max definition in URL Token")
+			panic("min definition is greater than max definition in URL Token")
 		}
 	}
 }
