@@ -3,7 +3,10 @@ package main
 
 import (
 	"flag"
+	"github.com/op/go-logging"
 )
+
+var log = logging.MustGetLogger("sg")
 
 var profile string
 
