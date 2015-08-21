@@ -1,4 +1,4 @@
-package main
+package sg
 
 import (
 	"encoding/json"
@@ -39,36 +39,41 @@ type Profile struct {
 
 // StressTest stores the one stress test.
 type StressTest struct {
-	Name        string        `xml:"name,attr"`
-	Description string        `xml:"description"`
-	CriticalTh  duration      `xml:"critical,attr"`
-	WarningTh   duration      `xml:"warning,attr"`
-	Requests    []*RequestXML `xml:"request"`
+	Name        string        `xml:"name,attr"`     // Name of this test.
+	Description string        `xml:"description"`   // Description of this test.
+	CriticalTh  duration      `xml:"critical,attr"` // Duration above the critical level.
+	WarningTh   duration      `xml:"warning,attr"`  // Duration above the warning level.
+	Requests    []*RequestXML `xml:"request"`       // Top-level requests for this test.
+	offspring   *Offspring    // Channel of sent top-level requests.
 }
 
 // RequestXML stores the request as XML.
 // It is kept in XML until it is executed to read from the parent response as needed.
 type RequestXML struct {
-	Parent      *RequestXML
-	Children    *[]RequestXML `xml:"request"`
-	Method      string        `xml:"method,attr"`
-	Repeat      int           `xml:"repeat,attr"`
-	Concurrency int           `xml:"concurrency,attr"`
-	RespType    string        `xml:"responseType,attr"`
-	URL         *URL          `xml:"url"`
-	Headers     *Tokenized    `xml:"headers"`
-	Data        *Tokenized    `xml:"data"`
+	Parent      *RequestXML      // Parent of this request, can be nil.
+	Children    []*RequestXML    `xml:"request"`               // Children of this request.
+	Method      string           `xml:"method,attr"`           // Method of this request.
+	Repeat      int              `xml:"repeat,attr"`           // Number of times to repeat this request.
+	Concurrency int              `xml:"concurrency,attr"`      // Number of concurrent requests like these to send.
+	RespType    string           `xml:"responseType,attr"`     // Response type which can be used for child requests.
+	FwdCookies  bool             `xml:"useParentCookies,attr"` // Forward the parent response cookies to the children requests.
+	URL         *URL             `xml:"url"`                   // URL to request.
+	Headers     *Tokenized       `xml:"headers"`               // Headers to send.
+	Data        *Tokenized       `xml:"data"`                  // Data to send.
+	startTime   time.Time        // Start time of this request.
+	duration    time.Duration    // Stores the duration of the fetch in nanoseconds.
+	offspring   chan *RequestXML // Channel of sent children requests
 }
 
 // Validate confirms that a request is correctly defined.
 func (r *RequestXML) Validate() {
 	if r.Concurrency > r.Repeat {
-		panic("more concurrency than repetition in a request does not make sense")
+		panic(fmt.Errorf("concurrency of %d for %d repetitions does not make sense", r.Concurrency, r.Repeat))
 	}
 	if r.Method == "" {
 		panic("method not defined")
 	}
-	if r.RespType != "json" {
+	if r.RespType != "" && r.RespType != "json" {
 		panic(fmt.Errorf("reponseType `%s` is not yet supported", r.RespType))
 	}
 	r.Method = strings.ToUpper(r.Method)
@@ -94,7 +99,7 @@ func (u *URL) Validate() {
 }
 
 // Generate returns a new URL based on the base and the tokens.
-func (u *URL) Generate() (url string) {
+func (u URL) Generate() (url string) {
 	url = u.Base
 	if u.Tokens != nil {
 		for _, tok := range *u.Tokens {
@@ -225,20 +230,25 @@ func loadProfile(profileFile string) (*Profile, error) {
 		if test.Requests == nil {
 			return nil, fmt.Errorf("error loading profile %s: there are no requests to send\n", profileFile)
 		}
+
 		for _, request := range test.Requests {
 			request.Validate()
-			setParentRequest(nil, request.Children)
+			if request.FwdCookies {
+				log.Warning("cannot use parent cookies in top request")
+			}
+			setParentRequest(request, request.Children)
 		}
 	}
 	return &profile, nil
 }
 
 // setParentRequest sets the parent request recursively for all children.
-func setParentRequest(parent *RequestXML, children *[]RequestXML) {
+func setParentRequest(parent *RequestXML, children []*RequestXML) {
 	if children != nil {
-		for _, child := range *children {
+		for _, child := range children {
+			child.Validate()
 			child.Parent = parent
-			setParentRequest(&child, child.Children)
+			setParentRequest(child, child.Children)
 		}
 	}
 }

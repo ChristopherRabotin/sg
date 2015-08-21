@@ -12,7 +12,7 @@
 			<headers>Cookie: example=true;</headers>
 			<data>{"username": "admin", "password": "superstrong"}</data>
 			<!-- These 50 requests go right after the /auth request responds. -->
-			<request method="get" useParentCookies="true" number="50"
+			<request method="get" useParentCookies="true" repeat="50"
 				concurrency="5">
 				<url base="http://example.org:1598/expensive/token1-token2/token3/token4">
 					<token token="token1" choices="Val1|Val2" />
@@ -22,7 +22,7 @@
 				</url>
 			</request>
 			<!-- These 50 requests go right after the GET request go through. -->
-			<request method="put" number="50" concurrency="5">
+			<request method="put" repeat="50" concurrency="5">
 				<url base="http://example.org:7789/stress/PUT" />
 				<headers responseToken="resp" headerToken="hdr" cookieToken="cke">
 					Authorization:DecayingToken resp/token

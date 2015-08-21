@@ -1,4 +1,4 @@
-package main
+package sg
 
 import (
 	"encoding/xml"
@@ -153,7 +153,27 @@ func TestLoadProfile(t *testing.T) {
 				case "Example 1":
 					So(test.CriticalTh.Duration, ShouldEqual, time.Second*1)
 					So(test.WarningTh.Duration, ShouldEqual, time.Millisecond*750)
-					// Let's check the requests. TODO
+					So(len(test.Requests), ShouldEqual, 1)
+					So(test.Requests[0].Method, ShouldEqual, "POST")
+					So(test.Requests[0].Repeat, ShouldEqual, 1)
+					So(test.Requests[0].Concurrency, ShouldEqual, 1)
+					So(test.Requests[0].RespType, ShouldEqual, "json")
+					So(test.Requests[0].Headers.Data, ShouldEqual, "Cookie: example=true;")
+					So(test.Requests[0].Data.Data, ShouldEqual, `{"username": "admin", "password": "superstrong"}`)
+					So(test.Requests[0].FwdCookies, ShouldEqual, false)
+					// Checking the subrequests.
+					for pos, child := range test.Requests[0].Children {
+						So(child.Parent, ShouldNotEqual, nil)
+						So(child.Concurrency, ShouldEqual, 5)
+						So(child.Repeat, ShouldEqual, 50)
+						if pos == 0 {
+							So(child.Method, ShouldEqual, "GET")
+							So(child.FwdCookies, ShouldEqual, true)
+						} else {
+							So(child.Method, ShouldEqual, "PUT")
+							So(child.FwdCookies, ShouldEqual, false)
+						}
+					}
 				}
 			}
 		})
@@ -185,7 +205,7 @@ func TestTokenized(t *testing.T) {
 			out := Tokenized{}
 			xml.Unmarshal([]byte(example), &out)
 			resp, _ := goreq.Request{Uri: ts.URL + "/test"}.Do()
-			expectations := []string{"", "X-Fool:NotAMonkey shame on you", "Cookie:test=true;session_id=42", "Some-Header:Custom Header", "X-Cannot-Decode:",""}
+			expectations := []string{"", "X-Fool:NotAMonkey shame on you", "Cookie:test=true;session_id=42", "Some-Header:Custom Header", "X-Cannot-Decode:", ""}
 			for pos, line := range strings.Split(out.Format(resp), "\n") {
 				So(strings.TrimSpace(line), ShouldEqual, expectations[pos])
 			}

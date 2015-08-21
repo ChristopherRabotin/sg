@@ -1,5 +1,5 @@
 // Package sg is the main engine of the stress gauge.
-package main
+package sg
 
 import (
 	"flag"
@@ -25,6 +25,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	
+
 	fmt.Printf("%+v\n", profile)
 }
