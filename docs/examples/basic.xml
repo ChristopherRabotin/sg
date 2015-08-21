@@ -6,7 +6,7 @@
 			sequential.
 		</description>
 
-		<request method="post" responseType="json" number="1"
+		<request method="post" responseType="json" repeat="1"
 			concurrency="1">
 			<url base="http://example.org:1599/auth" />
 			<headers>Cookie: example=true;</headers>
@@ -24,9 +24,10 @@
 			<!-- These 50 requests go right after the GET request go through. -->
 			<request method="put" number="50" concurrency="5">
 				<url base="http://example.org:7789/stress/PUT" />
-				<headers responseToken="resp" headerToken="hdr">
+				<headers responseToken="resp" headerToken="hdr" cookieToken="cke">
 					Authorization:DecayingToken resp/token
-					Cookie:test=true;session_id=hdr/Cookie/session_id
+					Cookie:test=true;session_id=cke/session_id
+					Some-Header:hdr/Some-Header
 				</headers>
 				<data responseToken="resp" headerToken="hdr">
 					{"user_id":"resp/user_id", "action": "test"}

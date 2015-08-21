@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"github.com/franela/goreq"
 	"github.com/jmcvetta/randutil"
 	"io/ioutil"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -46,14 +49,33 @@ type StressTest struct {
 // RequestXML stores the request as XML.
 // It is kept in XML until it is executed to read from the parent response as needed.
 type RequestXML struct {
-	Parent   *RequestXML
-	Children *[]RequestXML `xml:"request"`
-	URL      *URL          `xml:"url"`
-	Headers  *Tokenized    `xml:"headers"`
-	Data     *Tokenized    `xml:"data"`
+	Parent      *RequestXML
+	Children    *[]RequestXML `xml:"request"`
+	Method      string        `xml:"method,attr"`
+	Repeat      int           `xml:"repeat,attr"`
+	Concurrency int           `xml:"concurrency,attr"`
+	RespType    string        `xml:"responseType,attr"`
+	URL         *URL          `xml:"url"`
+	Headers     *Tokenized    `xml:"headers"`
+	Data        *Tokenized    `xml:"data"`
 }
 
-// Todo: function to generate a URL from this struct.
+// Validate confirms that a request is correctly defined.
+func (r *RequestXML) Validate() {
+	if r.Concurrency > r.Repeat {
+		panic("more concurrency than repetition in a request does not make sense")
+	}
+	if r.Method == "" {
+		panic("method not defined")
+	}
+	if r.RespType != "json" {
+		panic(fmt.Errorf("reponseType `%s` is not yet supported", r.RespType))
+	}
+	r.Method = strings.ToUpper(r.Method)
+	r.URL.Validate()
+}
+
+// URL handles URL generation based on the requested pattern.
 type URL struct {
 	Base   string      `xml:"base,attr"`
 	Tokens *[]URLToken `xml:"token"`
@@ -61,10 +83,12 @@ type URL struct {
 
 // Validate confirms the validity of a URL.
 func (u *URL) Validate() {
-	for _, tok := range *u.Tokens {
-		tok.Validate()
-		if !strings.Contains(u.Base, tok.Token) {
-			panic(fmt.Errorf("cannot find token %s in base %s.", tok.Token, u.Base))
+	if u.Tokens != nil {
+		for _, tok := range *u.Tokens {
+			tok.Validate()
+			if !strings.Contains(u.Base, tok.Token) {
+				panic(fmt.Errorf("cannot find token `%s` in base %s", tok.Token, u.Base))
+			}
 		}
 	}
 }
@@ -135,12 +159,55 @@ func (t *URLToken) Generate() (r string) {
 	return
 }
 
-// Todo: Tokenized helping functions.
+// Tokenized stores the data handling from a given response.
 type Tokenized struct {
 	Response string `xml:"responseToken,attr"`
 	Header   string `xml:"headerToken,attr"`
+	Cookie   string `xml:"cookieToken,attr"`
+	Data     string `xml:",innerxml"`
 }
 
+// Format returns the tokenized's data from a given response.
+// Note: this does not use a pointer to not overwrite the initial Data.
+func (t Tokenized) Format(resp *goreq.Response) (formatted string) {
+	formatted = t.Data
+	if t.Cookie != "" {
+		// Setting the data from the cookies.
+		cookies := map[string]string{}
+		for _, cookie := range resp.Cookies() {
+			cookies[cookie.Name] = cookie.Value
+		}
+		re := regexp.MustCompile(fmt.Sprintf("(?:%s/)([A-Za-z0-9-_]+)", t.Cookie))
+		for _, match := range re.FindAllStringSubmatch(formatted, -1) {
+			formatted = strings.Replace(formatted, match[0], cookies[match[1]], -1)
+		}
+	}
+	if t.Header != "" {
+		// Setting the data from the header.
+		re := regexp.MustCompile(fmt.Sprintf("(?:%s/)([A-Za-z0-9-_]+)", t.Header))
+		for _, match := range re.FindAllStringSubmatch(formatted, -1) {
+			formatted = strings.Replace(formatted, match[0], resp.Header.Get(match[1]), -1)
+		}
+	}
+	if t.Response != "" {
+		// Changing the values based on the response.
+		// The following allow us to only decode the data we need as a string (and hoping it is).
+		jsonResp := map[string]json.RawMessage{}
+		resp.Body.FromJsonTo(&jsonResp)
+		re := regexp.MustCompile(fmt.Sprintf("(?:%s/)([A-Za-z0-9-_]+)", t.Response))
+		for _, match := range re.FindAllStringSubmatch(formatted, -1) {
+			var value string
+			err := json.Unmarshal(jsonResp[match[1]], &value)
+			if err != nil {
+				log.Warning(fmt.Sprintf("could not convert response JSON field `%s` to a string", match[1]))
+			}
+			formatted = strings.Replace(formatted, match[0], string(value), -1)
+		}
+	}
+	return
+}
+
+// loadProfile loads a profile XML file.
 func loadProfile(profileFile string) (*Profile, error) {
 	if profileFile == "" {
 		return nil, errors.New("profile filename is empty")
@@ -155,13 +222,18 @@ func loadProfile(profileFile string) (*Profile, error) {
 	}
 	// Let's set the parent requests on all children.
 	for _, test := range profile.Tests {
+		if test.Requests == nil {
+			return nil, fmt.Errorf("error loading profile %s: there are no requests to send\n", profileFile)
+		}
 		for _, request := range test.Requests {
+			request.Validate()
 			setParentRequest(nil, request.Children)
 		}
 	}
 	return &profile, nil
 }
 
+// setParentRequest sets the parent request recursively for all children.
 func setParentRequest(parent *RequestXML, children *[]RequestXML) {
 	if children != nil {
 		for _, child := range *children {

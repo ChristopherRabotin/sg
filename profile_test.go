@@ -3,8 +3,12 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
+	"github.com/franela/goreq"
 	. "github.com/smartystreets/goconvey/convey"
+	"net/http"
+	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -108,6 +112,21 @@ func TestURL(t *testing.T) {
 			So(err, ShouldEqual, nil)
 			So(matched, ShouldEqual, true)
 		})
+
+		Convey("Non existing tokens should panic", func() {
+			example := `<url base="http://example.org:1598/expensive/ToKeN1/">
+					<token token="token1" choices="Val1|Val2" /></url>`
+			out := URL{}
+			xml.Unmarshal([]byte(example), &out)
+			So(out.Tokens, ShouldNotEqual, nil)
+			for _, tok := range *out.Tokens {
+				// The token is valid so it should not panic.
+				So(tok.Validate, ShouldNotPanic)
+			}
+			// However, if the token is not found in the URL, its validation should fail.
+			So(out.Validate, ShouldPanic)
+
+		})
 	})
 }
 
@@ -130,13 +149,45 @@ func TestLoadProfile(t *testing.T) {
 			numTests := 0
 			for _, test := range profile.Tests {
 				numTests++
-				fmt.Printf("\n%+v\n", test)
 				switch test.Name {
 				case "Example 1":
 					So(test.CriticalTh.Duration, ShouldEqual, time.Second*1)
 					So(test.WarningTh.Duration, ShouldEqual, time.Millisecond*750)
-					// Let's check the requests.
+					// Let's check the requests. TODO
 				}
+			}
+		})
+	})
+}
+
+func TestTokenized(t *testing.T) {
+	Convey("Tokenizing data from a request works as expected", t, func() {
+		// Let's setup a test server.
+		var ts *httptest.Server
+		var requestHeaders http.Header
+		ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestHeaders = r.Header
+			if r.Method == "GET" && r.URL.Path == "/test" {
+				defer r.Body.Close()
+				w.Header().Add("X-Custom-Hdr", "Custom Header")
+				w.Header().Add("Set-Cookie", "session_id=42 ; Path=/")
+				w.WriteHeader(200)
+				fmt.Fprint(w, fmt.Sprintf(`{"URL": "%s", "json": true, "foolMeOnce": "shame on you"}`, r.URL))
+			}
+		}))
+		Convey("Given a Tokenized objects, confirm that it formats the right information.", func() {
+			example := `<headers responseToken="resp" headerToken="hdr" cookieToken="cke">
+							X-Fool:NotAMonkey resp/foolMeOnce
+							Cookie:test=true;session_id=cke/session_id
+							Some-Header:hdr/X-Custom-Hdr
+							X-Cannot-Decode: resp/json
+						</headers>`
+			out := Tokenized{}
+			xml.Unmarshal([]byte(example), &out)
+			resp, _ := goreq.Request{Uri: ts.URL + "/test"}.Do()
+			expectations := []string{"", "X-Fool:NotAMonkey shame on you", "Cookie:test=true;session_id=42", "Some-Header:Custom Header", "X-Cannot-Decode:",""}
+			for pos, line := range strings.Split(out.Format(resp), "\n") {
+				So(strings.TrimSpace(line), ShouldEqual, expectations[pos])
 			}
 		})
 	})
