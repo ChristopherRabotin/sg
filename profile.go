@@ -44,25 +44,26 @@ type StressTest struct {
 	CriticalTh  duration      `xml:"critical,attr"` // Duration above the critical level.
 	WarningTh   duration      `xml:"warning,attr"`  // Duration above the warning level.
 	Requests    []*RequestXML `xml:"request"`       // Top-level requests for this test.
-	offspring   *Offspring    // Channel of sent top-level requests.
+	offspring   *Offspring    // Offspring of sent top-level requests.
 }
 
 // RequestXML stores the request as XML.
 // It is kept in XML until it is executed to read from the parent response as needed.
 type RequestXML struct {
-	Parent      *RequestXML      // Parent of this request, can be nil.
-	Children    []*RequestXML    `xml:"request"`               // Children of this request.
-	Method      string           `xml:"method,attr"`           // Method of this request.
-	Repeat      int              `xml:"repeat,attr"`           // Number of times to repeat this request.
-	Concurrency int              `xml:"concurrency,attr"`      // Number of concurrent requests like these to send.
-	RespType    string           `xml:"responseType,attr"`     // Response type which can be used for child requests.
-	FwdCookies  bool             `xml:"useParentCookies,attr"` // Forward the parent response cookies to the children requests.
-	URL         *URL             `xml:"url"`                   // URL to request.
-	Headers     *Tokenized       `xml:"headers"`               // Headers to send.
-	Data        *Tokenized       `xml:"data"`                  // Data to send.
-	startTime   time.Time        // Start time of this request.
-	duration    time.Duration    // Stores the duration of the fetch in nanoseconds.
-	offspring   chan *RequestXML // Channel of sent children requests
+	Parent      *RequestXML     // Parent of this request, can be nil.
+	Children    []*RequestXML   `xml:"request"`               // Children of this request.
+	Method      string          `xml:"method,attr"`           // Method of this request.
+	Repeat      int             `xml:"repeat,attr"`           // Number of times to repeat this request.
+	Concurrency int             `xml:"concurrency,attr"`      // Number of concurrent requests like these to send.
+	RespType    string          `xml:"responseType,attr"`     // Response type which can be used for child requests.
+	FwdCookies  bool            `xml:"useParentCookies,attr"` // Forward the parent response cookies to the children requests.
+	URL         *URL            `xml:"url"`                   // URL to request.
+	Headers     *Tokenized      `xml:"headers"`               // Headers to send.
+	Data        *Tokenized      `xml:"data"`                  // Data to send.
+	startTime   time.Time       // Start time of this request.
+	duration    time.Duration   // Stores the duration of the fetch in nanoseconds.
+	offspring   *Offspring      // Offspring of sent children requests
+	resp        *goreq.Response // Response from the request.
 }
 
 // Validate confirms that a request is correctly defined.
@@ -78,6 +79,34 @@ func (r *RequestXML) Validate() {
 	}
 	r.Method = strings.ToUpper(r.Method)
 	r.URL.Validate()
+}
+
+// Spawn sends the actual request.
+func (r *RequestXML) Spawn(parent *goreq.Response) {
+	r.startTime = time.Now()
+	req := goreq.Request{Method: r.Method, Uri: r.URL.Generate(), Body: r.Data.Format(parent)}
+	// Let's set the headers.
+	for _, line := range strings.Split(r.Headers.Format(parent), "\n") {
+		hdr := strings.Split(line, ":")
+		req.AddHeader(strings.TrimSpace(hdr[0]), strings.TrimSpace(hdr[1]))
+	}
+	// Let's also add the cookies.
+	if r.FwdCookies {
+		if parent.Cookies() != nil {
+			for _, delicacy := range parent.Cookies() {
+				req.AddCookie(delicacy)
+			}
+		}
+	}
+	resp, err := req.Do()
+	if err != nil {
+		log.Critical("could not send request to %s: %s", req.Uri, err)
+		return
+	}
+	r.duration = time.Now().Sub(r.startTime)
+	r.resp = resp
+	r.offspring = &Offspring{}
+	r.offspring.Breed(r) // Is this right?!
 }
 
 // URL handles URL generation based on the requested pattern.

@@ -27,4 +27,10 @@ func main() {
 	}
 
 	fmt.Printf("%+v\n", profile)
+	for _, test := range profile.Tests {
+		test.offspring = &Offspring{}
+		for _, r := range test.Requests {
+			test.offspring.Breed(r)
+		}
+	}
 }
