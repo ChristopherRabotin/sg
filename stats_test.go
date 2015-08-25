@@ -1,4 +1,4 @@
-package sg
+package main
 
 import (
 	"encoding/xml"
@@ -18,6 +18,6 @@ func TestPercentages(t *testing.T) {
 		}
 		So(p.Mean(), ShouldEqual, 49.5)
 		b, _ := xml.Marshal(p)
-		So(string(b), ShouldEqual, `<Percentages mean="49.5" p1="1" p10="10" p25="25" p50="50" p66="66" p75="75" p80="80" p90="90" p95="95" p98="98" p99="99" p100="99"></Percentages>`)
+		So(string(b), ShouldEqual, `<Percentages mean="49.5" shortest="1" p10="10" p25="25" p50="50" p66="66" p75="75" p80="80" p90="90" p95="95" p98="98" p99="99" longest="99"></Percentages>`)
 	})
 }

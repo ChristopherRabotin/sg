@@ -1,4 +1,4 @@
-package sg
+package main
 
 import (
 	"encoding/xml"
@@ -20,6 +20,7 @@ func TestURL(t *testing.T) {
 			out := URL{}
 			xml.Unmarshal([]byte(`<url base="http://example.org:7789/stress/PUT" />`), &out)
 			So(out.Generate(), ShouldEqual, "http://example.org:7789/stress/PUT")
+			So(out.String(), ShouldEqual, "http://example.org:7789/stress/PUT")
 			So(out.Tokens, ShouldEqual, nil)
 		})
 
@@ -108,9 +109,11 @@ func TestURL(t *testing.T) {
 				}
 			}
 			So(out.Validate, ShouldNotPanic)
-			matched, err := regexp.MatchString("http://example.org:1598/expensive/(Val1|Val2)-[A-Za-z]{5,10}/[0-9]{5,10}/[A-Za-z0-9]{5,10}", out.Generate())
+			pattern := "http://example.org:1598/expensive/(Val1|Val2)-[A-Za-z]{5,10}/[0-9]{5,10}/[A-Za-z0-9]{5,10}"
+			matched, err := regexp.MatchString(pattern, out.Generate())
 			So(err, ShouldEqual, nil)
 			So(matched, ShouldEqual, true)
+			So(out.String(), ShouldEqual, pattern)
 		})
 
 		Convey("Non existing tokens should panic", func() {

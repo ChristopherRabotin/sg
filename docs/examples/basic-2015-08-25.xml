@@ -1,0 +1,26 @@
+<Profile name="Basic example" uid="1">
+	<test name="Example 1" critical="1s" warning="750ms">
+		<description>This is an example of a unique request.&#xA;&#x9;&#x9;</description>
+		<request method="POST" repeat="20" concurrency="10" responseType="json" useParentCookies="false">
+			<url base="http://example.org:1599/some-endpoint"></url>
+			<headers responseToken="" headerToken="" cookieToken="">Cookie: example=true;</headers>
+			<data responseToken="" headerToken="" cookieToken="">{"username": "admin", "password": "superstrong"}</data>
+			<result method="POST" url="http://example.org:1599/some-endpoint" concurrency="10" repetitions="20" withCookies="false" withHeaders="false" withData="false">
+				<times mean="0" shortest="1.003702954" p10="1.003702954" p25="1.003702954" p50="1.003702954" p66="1.003702954" p75="1.003702954" p80="1.003702954" p90="1.003702954" p95="1.003702954" p98="1.003702954" p99="1.003702954" longest="1.003702954"></times>
+				<statuses errored="20" s1xx="0" s2xx="0" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</result>
+		</request>
+	</test>
+	<test name="Example 2" critical="1s" warning="750ms">
+		<description>This is an example with children.&#xA;&#x9;&#x9;</description>
+		<request method="POST" repeat="1" concurrency="1" responseType="json" useParentCookies="false">
+			<url base="http://example.org:1599/auth"></url>
+			<headers responseToken="" headerToken="" cookieToken="">Cookie: example=true;</headers>
+			<data responseToken="" headerToken="" cookieToken="">{"username": "admin", "password": "superstrong"}</data>
+			<result method="POST" url="http://example.org:1599/auth" concurrency="1" repetitions="1" withCookies="false" withHeaders="false" withData="false">
+				<times mean="0" shortest="1.005413403" p10="1.005413403" p25="1.005413403" p50="1.005413403" p66="1.005413403" p75="1.005413403" p80="1.005413403" p90="1.005413403" p95="1.005413403" p98="1.005413403" p99="1.005413403" longest="1.005413403"></times>
+				<statuses errored="1" s1xx="0" s2xx="0" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</result>
+		</request>
+	</test>
+</Profile>

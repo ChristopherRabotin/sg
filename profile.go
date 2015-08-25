@@ -1,4 +1,4 @@
-package sg
+package main
 
 import (
 	"encoding/json"
@@ -30,6 +30,14 @@ func (dur *duration) UnmarshalXMLAttr(attr xml.Attr) (err error) {
 	return nil
 }
 
+// MarshalXMLAttr implements the xml.MarshalerAttr interface.
+// Attributes will be serialized with a value of "0" or "1".
+func (dur *duration) MarshalXMLAttr(name xml.Name) (attr xml.Attr, err error) {
+	attr.Name = name
+	attr.Value = dur.String()
+	return
+}
+
 // Profile stores the whole test profile
 type Profile struct {
 	Name  string        `xml:"name,attr"`
@@ -39,74 +47,17 @@ type Profile struct {
 
 // StressTest stores the one stress test.
 type StressTest struct {
-	Name        string        `xml:"name,attr"`     // Name of this test.
-	Description string        `xml:"description"`   // Description of this test.
-	CriticalTh  duration      `xml:"critical,attr"` // Duration above the critical level.
-	WarningTh   duration      `xml:"warning,attr"`  // Duration above the warning level.
-	Requests    []*RequestXML `xml:"request"`       // Top-level requests for this test.
-	offspring   *Offspring    // Offspring of sent top-level requests.
+	Name        string     `xml:"name,attr"`     // Name of this test.
+	Description string     `xml:"description"`   // Description of this test.
+	CriticalTh  duration   `xml:"critical,attr"` // Duration above the critical level.
+	WarningTh   duration   `xml:"warning,attr"`  // Duration above the warning level.
+	Requests    []*Request `xml:"request"`       // Top-level requests for this test.
+	Result      *Result    `xml:"result"`        // Test results, populated only after the tests run.
+	offspring   *Offspring // Offspring of sent top-level requests.
 }
 
-// RequestXML stores the request as XML.
-// It is kept in XML until it is executed to read from the parent response as needed.
-type RequestXML struct {
-	Parent      *RequestXML     // Parent of this request, can be nil.
-	Children    []*RequestXML   `xml:"request"`               // Children of this request.
-	Method      string          `xml:"method,attr"`           // Method of this request.
-	Repeat      int             `xml:"repeat,attr"`           // Number of times to repeat this request.
-	Concurrency int             `xml:"concurrency,attr"`      // Number of concurrent requests like these to send.
-	RespType    string          `xml:"responseType,attr"`     // Response type which can be used for child requests.
-	FwdCookies  bool            `xml:"useParentCookies,attr"` // Forward the parent response cookies to the children requests.
-	URL         *URL            `xml:"url"`                   // URL to request.
-	Headers     *Tokenized      `xml:"headers"`               // Headers to send.
-	Data        *Tokenized      `xml:"data"`                  // Data to send.
-	startTime   time.Time       // Start time of this request.
-	duration    time.Duration   // Stores the duration of the fetch in nanoseconds.
-	offspring   *Offspring      // Offspring of sent children requests
-	resp        *goreq.Response // Response from the request.
-}
-
-// Validate confirms that a request is correctly defined.
-func (r *RequestXML) Validate() {
-	if r.Concurrency > r.Repeat {
-		panic(fmt.Errorf("concurrency of %d for %d repetitions does not make sense", r.Concurrency, r.Repeat))
-	}
-	if r.Method == "" {
-		panic("method not defined")
-	}
-	if r.RespType != "" && r.RespType != "json" {
-		panic(fmt.Errorf("reponseType `%s` is not yet supported", r.RespType))
-	}
-	r.Method = strings.ToUpper(r.Method)
-	r.URL.Validate()
-}
-
-// Spawn sends the actual request.
-func (r *RequestXML) Spawn(parent *goreq.Response) {
-	r.startTime = time.Now()
-	req := goreq.Request{Method: r.Method, Uri: r.URL.Generate(), Body: r.Data.Format(parent)}
-	// Let's set the headers.
-	for _, line := range strings.Split(r.Headers.Format(parent), "\n") {
-		hdr := strings.Split(line, ":")
-		req.AddHeader(strings.TrimSpace(hdr[0]), strings.TrimSpace(hdr[1]))
-	}
-	// Let's also add the cookies.
-	if r.FwdCookies {
-		if parent.Cookies() != nil {
-			for _, delicacy := range parent.Cookies() {
-				req.AddCookie(delicacy)
-			}
-		}
-	}
-	resp, err := req.Do()
-	if err != nil {
-		log.Critical("could not send request to %s: %s", req.Uri, err)
-		return
-	}
-	r.duration = time.Now().Sub(r.startTime)
-	r.resp = resp
-	r.offspring = &Offspring{}
-	r.offspring.Breed(r) // Is this right?!
+func (t StressTest) String() string {
+	return fmt.Sprintf("%s (critical=%s, warning=%s)", t.Name, t.CriticalTh, t.WarningTh)
 }
 
 // URL handles URL generation based on the requested pattern.
@@ -133,6 +84,17 @@ func (u URL) Generate() (url string) {
 	if u.Tokens != nil {
 		for _, tok := range *u.Tokens {
 			url = strings.Replace(url, tok.Token, tok.Generate(), -1)
+		}
+	}
+	return
+}
+
+// String implements the Stringer interface.
+func (u URL) String() (url string) {
+	url = u.Base
+	if u.Tokens != nil {
+		for _, tok := range *u.Tokens {
+			url = strings.Replace(url, tok.Token, tok.String(), -1)
 		}
 	}
 	return
@@ -187,10 +149,25 @@ func (t *URLToken) Generate() (r string) {
 	case "alphanum":
 		r, _ = randutil.AlphaStringRange(t.MinLength, t.MaxLength)
 	case "num":
-		rInt, _ := randutil.IntRange(int(math.Pow10(t.MinLength)), int(math.Pow10(t.MinLength)))
+		rInt, _ := randutil.IntRange(int(math.Pow10(t.MinLength)), int(math.Pow10(t.MaxLength)))
 		r = strconv.FormatInt(int64(rInt), 10)
 	}
 	return
+}
+
+func (t URLToken) String() string {
+	if t.Choices != "" {
+		return "(" + t.Choices + ")"
+	}
+	switch t.Pattern {
+	case "alpha":
+		return fmt.Sprintf("[A-Za-z]{%d,%d}", t.MinLength, t.MaxLength)
+	case "alphanum":
+		return fmt.Sprintf("[A-Za-z0-9]{%d,%d}", t.MinLength, t.MaxLength)
+	case "num":
+		return fmt.Sprintf("[0-9]{%d,%d}", t.MinLength, t.MaxLength)
+	}
+	return ""
 }
 
 // Tokenized stores the data handling from a given response.
@@ -201,10 +178,22 @@ type Tokenized struct {
 	Data     string `xml:",innerxml"`
 }
 
+// IsUsed returns whether this Tokenized will be computed.
+func (t Tokenized) IsUsed() bool {
+	return (t.Cookie != "" || t.Header != "" || t.Response != "")
+}
+
 // Format returns the tokenized's data from a given response.
 // Note: this does not use a pointer to not overwrite the initial Data.
 func (t Tokenized) Format(resp *goreq.Response) (formatted string) {
 	formatted = t.Data
+	if !t.IsUsed() {
+		return
+	}
+	if resp == nil {
+		log.Warning("Nothing to format for %s: response is nil.", t)
+		return
+	}
 	if t.Cookie != "" {
 		// Setting the data from the cookies.
 		cookies := map[string]string{}
@@ -241,6 +230,21 @@ func (t Tokenized) Format(resp *goreq.Response) (formatted string) {
 	return
 }
 
+func (t Tokenized) String() string {
+	s := "{Tokenized"
+	if t.Cookie != "" {
+		s += " with cookie"
+	}
+	if t.Header != "" {
+		s += " with header"
+	}
+	if t.Data != "" {
+		s += " with data"
+	}
+	s += "}"
+	return s
+}
+
 // loadProfile loads a profile XML file.
 func loadProfile(profileFile string) (*Profile, error) {
 	if profileFile == "" {
@@ -271,13 +275,13 @@ func loadProfile(profileFile string) (*Profile, error) {
 	return &profile, nil
 }
 
-// setParentRequest sets the parent request recursively for all children.
-func setParentRequest(parent *RequestXML, children []*RequestXML) {
-	if children != nil {
-		for _, child := range children {
-			child.Validate()
-			child.Parent = parent
-			setParentRequest(child, child.Children)
-		}
+func saveResult(profile *Profile, profileFile string) {
+	content, err := xml.MarshalIndent(profile, "", "\t")
+	if err != nil {
+		log.Error("failed %+v", err)
+		return
 	}
+	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02"))
+	ioutil.WriteFile(filename, content, 0644)
+	log.Notice("Saved output to %s.", filename)
 }

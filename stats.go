@@ -1,4 +1,4 @@
-package sg
+package main
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 // Percentages stores some Percentagess.
 type Percentages struct {
 	MeanValue  float64 `xml:"mean,attr"`
-	P1         float64 `xml:"p1,attr"`
+	P1         float64 `xml:"shortest,attr"`
 	P10        float64 `xml:"p10,attr"`
 	P25        float64 `xml:"p25,attr"`
 	P50        float64 `xml:"p50,attr"`
@@ -19,17 +19,13 @@ type Percentages struct {
 	P95        float64 `xml:"p95,attr"`
 	P98        float64 `xml:"p98,attr"`
 	P99        float64 `xml:"p99,attr"`
-	P100       float64 `xml:"p100,attr"`
+	P100       float64 `xml:"longest,attr"`
 	sortedVals []float64
 	length     int
 }
 
 // NewPercentages returns a stuct which helps in serializing request results.
 func NewPercentages(vals []float64) *Percentages {
-	/*durations := make([]float64, len(reqs))
-	for i, r := range reqs {
-		durations[i] = float64(r.duration.Nanoseconds())
-	}*/
 	sort.Float64s(vals)
 	p := Percentages{sortedVals: vals, length: len(vals)}
 	p.P1 = p.Percentage(1)
