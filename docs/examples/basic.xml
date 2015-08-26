@@ -7,8 +7,6 @@
 		<request method="post" responseType="json" repeat="20"
 			concurrency="10">
 			<url base="http://example.org:1599/some-endpoint" />
-			<headers>Cookie: example=true;</headers>
-			<data>{"username": "admin", "password": "superstrong"}</data>
 		</request>
 	</test>
 

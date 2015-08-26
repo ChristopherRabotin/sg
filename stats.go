@@ -68,3 +68,8 @@ func (p *Percentages) Mean() float64 {
 	}
 	return p.MeanValue
 }
+
+//String implements the Stringer interface.
+func (p *Percentages) String() string {
+	return fmt.Sprintf("Shortest: %2.3fs Median: %2.3fs Q3: %2.3fs P95: %2.3fs Longest: %2.3fs", p.P1, p.P50, p.P75, p.P95, p.P100)
+}

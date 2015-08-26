@@ -53,7 +53,6 @@ type StressTest struct {
 	WarningTh   duration   `xml:"warning,attr"`  // Duration above the warning level.
 	Requests    []*Request `xml:"request"`       // Top-level requests for this test.
 	Result      *Result    `xml:"result"`        // Test results, populated only after the tests run.
-	offspring   *Offspring // Offspring of sent top-level requests.
 }
 
 func (t StressTest) String() string {

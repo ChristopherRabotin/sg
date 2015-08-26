@@ -38,9 +38,8 @@ func main() {
 
 	for _, test := range profile.Tests {
 		log.Notice("Starting test %s.", test)
-		test.offspring = NewOffspring()
 		for _, r := range test.Requests {
-			test.offspring.Breed(r, &completionWg)
+			r.Spawn(nil, &completionWg)
 		}
 	}
 	completionWg.Wait()

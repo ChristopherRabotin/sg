@@ -11,24 +11,26 @@ import (
 // Request stores the request as XML.
 // It is kept in XML until it is executed to read from the parent response as needed.
 type Request struct {
-	Parent      *Request        // Parent of this request, can be nil.
-	Children    []*Request      `xml:"request"`               // Children of this request.
-	Method      string          `xml:"method,attr"`           // Method of this request.
-	Repeat      int             `xml:"repeat,attr"`           // Number of times to repeat this request.
-	Concurrency int             `xml:"concurrency,attr"`      // Number of concurrent requests like these to send.
-	RespType    string          `xml:"responseType,attr"`     // Response type which can be used for child requests.
-	FwdCookies  bool            `xml:"useParentCookies,attr"` // Forward the parent response cookies to the children requests.
-	URL         *URL            `xml:"url"`                   // URL to request.
-	Headers     *Tokenized      `xml:"headers"`               // Headers to send.
-	Data        *Tokenized      `xml:"data"`                  // Data to send.
-	Result      *Result         `xml:"result"`
-	startTime   time.Time       // Start time of this request.
-	duration    time.Duration   // Stores the duration of the fetch in nanoseconds.
-	offspring   *Offspring      // Offspring of sent children requests
-	resp        *goreq.Response // Response from the request.
+	Parent       *Request       // Parent of this request, can be nil.
+	Children     []*Request     `xml:"request"`               // Children of this request.
+	Method       string         `xml:"method,attr"`           // Method of this request.
+	Repeat       int            `xml:"repeat,attr"`           // Number of times to repeat this request.
+	Concurrency  int            `xml:"concurrency,attr"`      // Number of concurrent requests like these to send.
+	RespType     string         `xml:"responseType,attr"`     // Response type which can be used for child requests.
+	FwdCookies   bool           `xml:"useParentCookies,attr"` // Forward the parent response cookies to the children requests.
+	URL          *URL           `xml:"url"`                   // URL to request.
+	Headers      *Tokenized     `xml:"headers"`               // Headers to send.
+	Data         *Tokenized     `xml:"data"`                  // Data to send.
+	Result       *Result        `xml:"result"`
+	duration     time.Duration  // Stores the duration of the fetch in nanoseconds.
+	ongoingReqs  chan struct{}  // Channel of ongoing requests.
+	doneChan     chan *Response // Channel of responses to buffer them prior to transfering them to doneReqs.
+	doneReqs     []*Response    // List of responses.
+	numCompleted int            // Number of completed requests.
+	doneWg       sync.WaitGroup // Wait group of the completed requests.
 }
 
-// Validate confirms that a request is correctly defined.
+// Validate confirms that a request is correctly defined and initializes variables.
 func (r *Request) Validate() {
 	if r.Concurrency > r.Repeat {
 		panic(fmt.Errorf("concurrency of %d for %d repetitions does not make sense", r.Concurrency, r.Repeat))
@@ -41,6 +43,9 @@ func (r *Request) Validate() {
 	}
 	r.Method = strings.ToUpper(r.Method)
 	r.URL.Validate()
+	r.ongoingReqs = make(chan struct{}, r.Concurrency)
+	r.doneReqs = make([]*Response, 0)
+	r.doneChan = make(chan *Response, r.Repeat)
 }
 
 // Spawn sends the actual request.
@@ -49,7 +54,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 	if r.Data != nil {
 		body = r.Data.Format(parent)
 	}
-	req := goreq.Request{Method: r.Method, Uri: r.URL.Generate(), Body: body}
+	greq := goreq.Request{Method: r.Method, Uri: r.URL.Generate(), Body: body}
 	// Let's set the headers, if needed.
 	if r.Headers != nil {
 		for _, line := range strings.Split(r.Headers.Format(parent), "\n") {
@@ -58,28 +63,136 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 				continue
 			}
 			hdr := strings.Split(line, ":")
-			req.AddHeader(strings.TrimSpace(hdr[0]), strings.TrimSpace(hdr[1]))
+			greq.AddHeader(strings.TrimSpace(hdr[0]), strings.TrimSpace(hdr[1]))
 		}
 	}
 	// Let's also add the cookies.
 	if r.FwdCookies && parent != nil {
 		if parent.Cookies() != nil {
 			for _, delicacy := range parent.Cookies() {
-				req.AddCookie(delicacy)
+				greq.AddCookie(delicacy)
 			}
 		}
 	}
 
-	totalSentRequests++
-	r.startTime = time.Now()
-	resp, err := req.Do()
-	r.duration = time.Now().Sub(r.startTime)
-	log.Info("%s lasted %s", r.URL, r.duration)
-	if err != nil {
-		log.Critical("could not send request to %s: %s", req.Uri, err)
-		return
+	// One go routine which pops stuff from the channel and moves them to the list.
+	go func() {
+		for {
+			r.doneReqs = append(r.doneReqs, <-r.doneChan)
+			r.doneWg.Done()
+			r.numCompleted++
+			perc := float64(r.numCompleted) / float64(r.Repeat)
+			notify := false
+			if perc >= 0.75 && perc-0.75 < 0.01 {
+				notify = true
+			} else if perc >= 0.5 && perc-0.5 < 0.01 {
+				notify = true
+			} else if perc >= 0.25 && perc-0.25 < 0.01 {
+				notify = true
+			} else if len(r.doneReqs)%100 == 0 {
+				notify = true
+			}
+			if notify {
+				log.Notice("Completed %d requests out of %d to %s.", len(r.doneReqs), r.Repeat, r.URL)
+			}
+		}
+	}()
+
+	// Let's spawn all the requests, with their respective concurrency.
+	for rno := 1; rno <= r.Repeat; rno++ {
+		wg.Add(1)
+		r.doneWg.Add(1)
+		go func(no int) {
+			r.ongoingReqs <- struct{}{} // Adding sentinel value to limit concurrency
+			startTime := time.Now()
+			gresp, err := greq.Do()
+			<-r.ongoingReqs // We're done, let's make room for the next request.
+			resp := Response{Response: gresp, duration: time.Now().Sub(startTime)}
+			log.Debug("Request #%d to %s lasted %s.", no, r.URL, resp.duration)
+			// Let's add that request to the list of completed requests.
+			r.doneChan <- &resp
+			if err != nil {
+				log.Critical("could not send request to %s: %s", greq.Uri, err)
+			}
+		}(rno)
 	}
-	r.resp = resp
+
+	// Let's now have a go routine which waits for all the requests to complete
+	// and spawns all the children.
+	go func() {
+		r.doneWg.Wait()
+		if r.Children != nil {
+			log.Debug("Spawning children for %s.", r.URL)
+			for _, child := range r.Children {
+				// Note that we always use the LAST response as the parent response.
+				child.Spawn(r.doneReqs[len(r.doneReqs)-1].Response, wg)
+			}
+		}
+		log.Debug("Computing result of %s.", r.URL)
+		r.ComputeResult(wg)
+	}()
+}
+
+// ComputeResult computes the results for the given request.
+func (r *Request) ComputeResult(wg *sync.WaitGroup) {
+	times := []float64{}
+	statuses := make(map[int]Status)
+	summary := StatusSummary{}
+	for _, response := range r.doneReqs {
+		totalSentRequests++
+		times = append(times, response.duration.Seconds())
+		if response.Response == nil {
+			// An error occurred when executing this request.
+			summary.None++
+		} else {
+			if val, exists := statuses[response.Response.StatusCode]; exists {
+				val.Count++
+				statuses[response.Response.StatusCode] = val
+			} else {
+				statuses[response.Response.StatusCode] = Status{Code: response.Response.StatusCode, Count: 1}
+			}
+			switch response.Response.StatusCode / 100 {
+			case 1:
+				summary.S1xx++
+			case 2:
+				summary.S2xx++
+			case 3:
+				summary.S3xx++
+			case 4:
+				summary.S4xx++
+			case 5:
+				summary.S5xx++
+			default:
+				log.Warning("Unsupported status code %d received.", response.Response.StatusCode)
+			}
+		}
+		wg.Done()
+	}
+	// Let's aggregate all this in a Result object.
+	result := Result{Method: r.Method, URL: r.URL.String(), Concurrency: r.Concurrency, Repetitions: r.Repeat,
+		HadCookies: r.FwdCookies,
+		HadData:    r.Data != nil && r.Data.IsUsed(),
+		HadHeader:  r.Headers != nil && r.Headers.IsUsed(),
+		StatusSum:  &summary,
+		Times:      NewPercentages(times)}
+
+	log.Notice("SUMMARY: %s %s", r, result.Times)
+
+	statusesVals := make([]Status, len(statuses))
+	i := 0
+	for _, s := range statusesVals {
+		statusesVals[i] = s
+		i++
+	}
+	result.Statuses = statusesVals
+	r.Result = &result
+	// Let's now unset the children because we don't need them anymore.
+	r.Children = nil
+}
+
+// String implements the Stringer interface.
+func (r *Request) String() string {
+	return fmt.Sprintf("%d request(s) (concurrency=%d) to %s", r.Repeat, r.Concurrency, r.URL)
 }
 
 // setParentRequest sets the parent request recursively for all children.
@@ -93,120 +206,10 @@ func setParentRequest(parent *Request, children []*Request) {
 	}
 }
 
-// Offspring handles bred requests.
-type Offspring struct {
-	Ongoing   map[*Request]chan struct{} // Stores the channel of a given request.
-	Completed map[*Request][]*Request    // Stores the channel of a given request.
-}
-
-// NewOffspring initializes an offspring.
-func NewOffspring() (o *Offspring) {
-	o = &Offspring{}
-	o.Ongoing = make(map[*Request]chan struct{})
-	o.Completed = make(map[*Request][]*Request)
-	return
-}
-
-// Breed generates child requests.
-func (o *Offspring) Breed(r *Request, wg *sync.WaitGroup) {
-	o.Ongoing[r] = make(chan struct{}, r.Concurrency)
-	o.Completed[r] = make([]*Request, 0)
-	for rno := 0; rno < r.Repeat; rno++ {
-		wg.Add(1)
-		// TODO: Fix logic in the go routine.
-		// Issue 1: after this is executed, everything in o.Completed is actually the same.
-		// This is not surprising once this was re-written using the go routine parameter (instead of a mix of r and req).
-		// Shouldn't the parent request be used somewhere here?
-		// Issue 2: the output shows that there is only one result per parent request instead of a hierarchy.
-		// Issue 3: The output XML is far too verbose and should really only contain the results.
-		go func(req *Request) {
-			o.Ongoing[req] <- struct{}{} // Adding sentinel value to limit concurrency.
-			req.Spawn(req.resp, wg)
-			<-o.Ongoing[req]
-			o.Completed[req] = append(o.Completed[req], req)
-			perc := float64(len(o.Completed[req])) / float64(req.Repeat)
-			notify := false
-			if perc >= 0.75 && perc-0.75 < 0.01 {
-				notify = true
-			} else if perc >= 0.5 && perc-0.5 < 0.01 {
-				notify = true
-			} else if perc >= 0.25 && perc-0.25 < 0.01 {
-				notify = true
-			} else if len(o.Completed[req])%100 == 0 {
-				notify = true
-			}
-			if notify {
-				log.Debug("Completed %d requests out of %d to %s.", len(o.Completed[req]), req.Repeat, req.URL)
-			}
-			if len(o.Completed[req]) == req.Repeat {
-				// Let's breed the children, if applicable.
-				// WARNING: the children will use the LAST response for their requests.
-				r.offspring = NewOffspring()
-				if r.Children != nil {
-					for _, child := range r.Children {
-						req.offspring.Breed(child, wg)
-					}
-				}
-				// All the requests have completed, let's compute the results for this request.
-				o.ComputeResult(req, wg)
-			}
-		}(r)
-	}
-}
-
-// ComputeResult computes the results of the given request.
-func (o *Offspring) ComputeResult(r *Request, wg *sync.WaitGroup) {
-	times := []float64{}
-	statuses := make(map[int]Status)
-	summary := StatusSummary{}
-	for i, child := range o.Completed[r] {
-		times = append(times, child.duration.Seconds())
-		log.Info("child %d %s", i, child.duration)
-		if child.resp == nil {
-			// An error occurred when executing this request.
-			summary.None++
-		} else {
-			if val, exists := statuses[child.resp.StatusCode]; exists {
-				val.Count++
-				statuses[child.resp.StatusCode] = val
-			} else {
-				statuses[child.resp.StatusCode] = Status{Code: child.resp.StatusCode, Count: 1}
-			}
-			switch child.resp.StatusCode / 100 {
-			case 1:
-				summary.S1xx++
-			case 2:
-				summary.S2xx++
-			case 3:
-				summary.S3xx++
-			case 4:
-				summary.S4xx++
-			case 5:
-				summary.S5xx++
-			default:
-				log.Warning("Unsupported status code %d received.", child.resp.StatusCode)
-			}
-		}
-		wg.Done()
-	}
-	// Let's aggregate all this in a Result object.
-	result := Result{Method: r.Method, URL: r.URL.String(), Concurrency: r.Concurrency, Repetitions: r.Repeat,
-		HadCookies: r.FwdCookies,
-		HadData:    r.Data != nil && r.Data.IsUsed(),
-		HadHeader:  r.Headers != nil && r.Headers.IsUsed(),
-		StatusSum:  &summary,
-		Times:      NewPercentages(times)}
-
-	statusesVals := make([]Status, len(statuses))
-	i := 0
-	for _, s := range statusesVals {
-		statusesVals[i] = s
-		i++
-	}
-	result.Statuses = statusesVals
-	r.Result = &result
-	// Let's now unset the children because we don't need them anymore.
-	r.Children = nil
+// Response extends a goreq.Response with a duration.
+type Response struct {
+	*goreq.Response
+	duration time.Duration
 }
 
 // Result store the result of a group of requests (as define by its concurrency and repetition).

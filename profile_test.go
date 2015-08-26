@@ -158,6 +158,16 @@ func TestLoadProfile(t *testing.T) {
 					So(test.WarningTh.Duration, ShouldEqual, time.Millisecond*750)
 					So(len(test.Requests), ShouldEqual, 1)
 					So(test.Requests[0].Method, ShouldEqual, "POST")
+					So(test.Requests[0].Repeat, ShouldEqual, 20)
+					So(test.Requests[0].Concurrency, ShouldEqual, 10)
+					So(test.Requests[0].RespType, ShouldEqual, "json")
+					So(test.Requests[0].Headers, ShouldBeNil)
+					So(test.Requests[0].Data, ShouldBeNil)
+				case "Example 2":
+					So(test.CriticalTh.Duration, ShouldEqual, time.Second*1)
+					So(test.WarningTh.Duration, ShouldEqual, time.Millisecond*750)
+					So(len(test.Requests), ShouldEqual, 1)
+					So(test.Requests[0].Method, ShouldEqual, "POST")
 					So(test.Requests[0].Repeat, ShouldEqual, 1)
 					So(test.Requests[0].Concurrency, ShouldEqual, 1)
 					So(test.Requests[0].RespType, ShouldEqual, "json")
@@ -168,7 +178,7 @@ func TestLoadProfile(t *testing.T) {
 					for pos, child := range test.Requests[0].Children {
 						So(child.Parent, ShouldNotEqual, nil)
 						So(child.Concurrency, ShouldEqual, 5)
-						So(child.Repeat, ShouldEqual, 50)
+						So(child.Repeat, ShouldEqual, 25)
 						if pos == 0 {
 							So(child.Method, ShouldEqual, "GET")
 							So(child.FwdCookies, ShouldEqual, true)
