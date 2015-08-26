@@ -22,11 +22,9 @@ type Request struct {
 	Headers      *Tokenized     `xml:"headers"`               // Headers to send.
 	Data         *Tokenized     `xml:"data"`                  // Data to send.
 	Result       *Result        `xml:"result"`
-	duration     time.Duration  // Stores the duration of the fetch in nanoseconds.
 	ongoingReqs  chan struct{}  // Channel of ongoing requests.
 	doneChan     chan *Response // Channel of responses to buffer them prior to transfering them to doneReqs.
 	doneReqs     []*Response    // List of responses.
-	numCompleted int            // Number of completed requests.
 	doneWg       sync.WaitGroup // Wait group of the completed requests.
 }
 
@@ -75,13 +73,12 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 		}
 	}
 
-	// One go routine which pops stuff from the channel and moves them to the list.
+	// One go routine which pops responses from the channel and moves them to the list.
 	go func() {
 		for {
 			r.doneReqs = append(r.doneReqs, <-r.doneChan)
 			r.doneWg.Done()
-			r.numCompleted++
-			perc := float64(r.numCompleted) / float64(r.Repeat)
+			perc := float64(len(r.doneReqs)) / float64(r.Repeat)
 			notify := false
 			if perc >= 0.75 && perc-0.75 < 0.01 {
 				notify = true
@@ -135,6 +132,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 
 // ComputeResult computes the results for the given request.
 func (r *Request) ComputeResult(wg *sync.WaitGroup) {
+	wg.Add(1) // Make sure this blocks output generation until we complete computation.
 	times := []float64{}
 	statuses := make(map[int]Status)
 	summary := StatusSummary{}
@@ -188,6 +186,7 @@ func (r *Request) ComputeResult(wg *sync.WaitGroup) {
 	r.Result = &result
 	// Let's now unset the children because we don't need them anymore.
 	r.Children = nil
+	wg.Done()
 }
 
 // String implements the Stringer interface.

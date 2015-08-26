@@ -4,7 +4,7 @@
 		<request method="POST" repeat="20" concurrency="10" responseType="json" useParentCookies="false">
 			<url base="http://example.org:1599/some-endpoint"></url>
 			<result method="POST" url="http://example.org:1599/some-endpoint" concurrency="10" repetitions="20" withCookies="false" withHeaders="false" withData="false">
-				<times mean="0" shortest="1.004147131" p10="1.006645961" p25="1.008024511" p50="1.008810003" p66="1.019932782" p75="1.020167614" p80="1.022576447" p90="1.023537437" p95="1.023632401" p98="1.023632401" p99="1.023632401" longest="1.023632401"></times>
+				<times mean="0" shortest="1.007383757" p10="1.010692617" p25="1.011458126" p50="1.013757121" p66="1.014746058" p75="1.015089412" p80="1.018329932" p90="1.023277029" p95="1.024859966" p98="1.024859966" p99="1.024859966" longest="1.024859966"></times>
 				<statuses errored="20" s1xx="0" s2xx="0" s3xx="0" s4xx="0" s5xx="0"></statuses>
 			</result>
 		</request>
@@ -16,7 +16,7 @@
 			<headers responseToken="" headerToken="" cookieToken="">Cookie: example=true;</headers>
 			<data responseToken="" headerToken="" cookieToken="">{"username": "admin", "password": "superstrong"}</data>
 			<result method="POST" url="http://example.org:1599/auth" concurrency="1" repetitions="1" withCookies="false" withHeaders="false" withData="false">
-				<times mean="0" shortest="1.019538422" p10="1.019538422" p25="1.019538422" p50="1.019538422" p66="1.019538422" p75="1.019538422" p80="1.019538422" p90="1.019538422" p95="1.019538422" p98="1.019538422" p99="1.019538422" longest="1.019538422"></times>
+				<times mean="0" shortest="1.014141499" p10="1.014141499" p25="1.014141499" p50="1.014141499" p66="1.014141499" p75="1.014141499" p80="1.014141499" p90="1.014141499" p95="1.014141499" p98="1.014141499" p99="1.014141499" longest="1.014141499"></times>
 				<statuses errored="1" s1xx="0" s2xx="0" s3xx="0" s4xx="0" s5xx="0"></statuses>
 			</result>
 		</request>
