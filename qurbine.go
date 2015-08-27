@@ -11,21 +11,21 @@ import (
 // Request stores the request as XML.
 // It is kept in XML until it is executed to read from the parent response as needed.
 type Request struct {
-	Parent       *Request       // Parent of this request, can be nil.
-	Children     []*Request     `xml:"request"`               // Children of this request.
-	Method       string         `xml:"method,attr"`           // Method of this request.
-	Repeat       int            `xml:"repeat,attr"`           // Number of times to repeat this request.
-	Concurrency  int            `xml:"concurrency,attr"`      // Number of concurrent requests like these to send.
-	RespType     string         `xml:"responseType,attr"`     // Response type which can be used for child requests.
-	FwdCookies   bool           `xml:"useParentCookies,attr"` // Forward the parent response cookies to the children requests.
-	URL          *URL           `xml:"url"`                   // URL to request.
-	Headers      *Tokenized     `xml:"headers"`               // Headers to send.
-	Data         *Tokenized     `xml:"data"`                  // Data to send.
-	Result       *Result        `xml:"result"`
-	ongoingReqs  chan struct{}  // Channel of ongoing requests.
-	doneChan     chan *Response // Channel of responses to buffer them prior to transfering them to doneReqs.
-	doneReqs     []*Response    // List of responses.
-	doneWg       sync.WaitGroup // Wait group of the completed requests.
+	Parent      *Request       // Parent of this request, can be nil.
+	Children    []*Request     `xml:"request"`               // Children of this request.
+	Method      string         `xml:"method,attr"`           // Method of this request.
+	Repeat      int            `xml:"repeat,attr"`           // Number of times to repeat this request.
+	Concurrency int            `xml:"concurrency,attr"`      // Number of concurrent requests like these to send.
+	RespType    string         `xml:"responseType,attr"`     // Response type which can be used for child requests.
+	FwdCookies  bool           `xml:"useParentCookies,attr"` // Forward the parent response cookies to the children requests.
+	URL         *URL           `xml:"url"`                   // URL to request.
+	Headers     *Tokenized     `xml:"headers"`               // Headers to send.
+	Data        *Tokenized     `xml:"data"`                  // Data to send.
+	Result      *Result        `xml:"result"`
+	ongoingReqs chan struct{}  // Channel of ongoing requests.
+	doneChan    chan *Response // Channel of responses to buffer them prior to transfering them to doneReqs.
+	doneReqs    []*Response    // List of responses.
+	doneWg      sync.WaitGroup // Wait group of the completed requests.
 }
 
 // Validate confirms that a request is correctly defined and initializes variables.
@@ -133,12 +133,12 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 // ComputeResult computes the results for the given request.
 func (r *Request) ComputeResult(wg *sync.WaitGroup) {
 	wg.Add(1) // Make sure this blocks output generation until we complete computation.
-	times := []float64{}
+	times := []time.Duration{}
 	statuses := make(map[int]Status)
 	summary := StatusSummary{}
 	for _, response := range r.doneReqs {
 		totalSentRequests++
-		times = append(times, response.duration.Seconds())
+		times = append(times, response.duration)
 		if response.Response == nil {
 			// An error occurred when executing this request.
 			summary.None++

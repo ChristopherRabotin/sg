@@ -15,29 +15,6 @@ import (
 	"time"
 )
 
-// duration allows automatic unmarshaling of a duration from XML.
-type duration struct {
-	time.Duration
-}
-
-// UnmarshalXMLAttr unmarshals a duration.
-func (dur *duration) UnmarshalXMLAttr(attr xml.Attr) (err error) {
-	parsed, err := time.ParseDuration(attr.Value)
-	if err != nil {
-		return
-	}
-	*dur = duration{parsed}
-	return nil
-}
-
-// MarshalXMLAttr implements the xml.MarshalerAttr interface.
-// Attributes will be serialized with a value of "0" or "1".
-func (dur *duration) MarshalXMLAttr(name xml.Name) (attr xml.Attr, err error) {
-	attr.Name = name
-	attr.Value = dur.String()
-	return
-}
-
 // Profile stores the whole test profile
 type Profile struct {
 	Name  string        `xml:"name,attr"`
@@ -49,8 +26,8 @@ type Profile struct {
 type StressTest struct {
 	Name        string     `xml:"name,attr"`     // Name of this test.
 	Description string     `xml:"description"`   // Description of this test.
-	CriticalTh  duration   `xml:"critical,attr"` // Duration above the critical level.
-	WarningTh   duration   `xml:"warning,attr"`  // Duration above the warning level.
+	CriticalTh  Duration   `xml:"critical,attr"` // Duration above the critical level.
+	WarningTh   Duration   `xml:"warning,attr"`  // Duration above the warning level.
 	Requests    []*Request `xml:"request"`       // Top-level requests for this test.
 	Result      *Result    `xml:"result"`        // Test results, populated only after the tests run.
 }

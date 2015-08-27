@@ -44,6 +44,6 @@ func main() {
 	}
 	completionWg.Wait()
 
-	log.Info("Sent a total of %d requests.", totalSentRequests)
+	log.Notice("Sent a total of %d requests.", totalSentRequests)
 	saveResult(profile, profileFile)
 }
