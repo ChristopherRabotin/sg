@@ -36,6 +36,11 @@ func main() {
 		return
 	}
 
+	stress(profile) // blocking call
+	saveResult(profile, profileFile)
+}
+
+func stress(profile *Profile) {
 	for _, test := range profile.Tests {
 		log.Notice("Starting test %s.", test)
 		for _, r := range test.Requests {
@@ -45,5 +50,4 @@ func main() {
 	completionWg.Wait()
 
 	log.Notice("Sent a total of %d requests.", totalSentRequests)
-	saveResult(profile, profileFile)
 }

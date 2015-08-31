@@ -154,6 +154,7 @@ func TestLoadProfile(t *testing.T) {
 				numTests++
 				switch test.Name {
 				case "Example 1":
+					So(test.String(), ShouldEqual, "Example 1 (critical=1s, warning=750ms)")
 					So(test.CriticalTh.Duration, ShouldEqual, time.Second*1)
 					So(test.WarningTh.Duration, ShouldEqual, time.Millisecond*750)
 					So(len(test.Requests), ShouldEqual, 1)
@@ -164,6 +165,7 @@ func TestLoadProfile(t *testing.T) {
 					So(test.Requests[0].Headers, ShouldBeNil)
 					So(test.Requests[0].Data, ShouldBeNil)
 				case "Example 2":
+					So(test.String(), ShouldEqual, "Example 2 (critical=1s, warning=750ms)")
 					So(test.CriticalTh.Duration, ShouldEqual, time.Second*1)
 					So(test.WarningTh.Duration, ShouldEqual, time.Millisecond*750)
 					So(len(test.Requests), ShouldEqual, 1)
@@ -208,6 +210,16 @@ func TestTokenized(t *testing.T) {
 				fmt.Fprint(w, fmt.Sprintf(`{"URL": "%s", "json": true, "foolMeOnce": "shame on you"}`, r.URL))
 			}
 		}))
+		Convey("Given a Tokenized objects, confirm that it formats the right information if does not format anything.", func() {
+			t := Tokenized{Data: "test"}
+			So(t.Format(nil), ShouldEqual, "test")
+			So(t.String(), ShouldEqual, "{Tokenized with data}")
+		})
+		Convey("Given a Tokenized objects, confirm that it formats the right information if response is nil.", func() {
+			t := Tokenized{Data: "test", Cookie: "ChocChip"}
+			So(t.Format(nil), ShouldEqual, "test")
+			So(t.String(), ShouldEqual, "{Tokenized with cookie with data}")
+		})
 		Convey("Given a Tokenized objects, confirm that it formats the right information.", func() {
 			example := `<headers responseToken="resp" headerToken="hdr" cookieToken="cke">
 							X-Fool:NotAMonkey resp/foolMeOnce
@@ -222,6 +234,7 @@ func TestTokenized(t *testing.T) {
 			for pos, line := range strings.Split(out.Format(resp), "\n") {
 				So(strings.TrimSpace(line), ShouldEqual, expectations[pos])
 			}
+			So(out.String(), ShouldEqual, "{Tokenized with cookie with header with data}")
 		})
 	})
 }

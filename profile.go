@@ -22,6 +22,24 @@ type Profile struct {
 	Tests []*StressTest `xml:"test"`
 }
 
+func (p *Profile) Validate() error {
+	// Let's set the parent requests on all children.
+	for _, test := range p.Tests {
+		if test.Requests == nil {
+			return fmt.Errorf("error loading profile %s: there are no requests to send\n", profileFile)
+		}
+
+		for _, request := range test.Requests {
+			request.Validate()
+			if request.FwdCookies {
+				log.Warning("cannot use parent cookies in top request")
+			}
+			setParentRequest(request, request.Children)
+		}
+	}
+	return nil
+}
+
 // StressTest stores the one stress test.
 type StressTest struct {
 	Name        string     `xml:"name,attr"`     // Name of this test.
@@ -143,7 +161,7 @@ func (t URLToken) String() string {
 	case "num":
 		return fmt.Sprintf("[0-9]{%d,%d}", t.MinLength, t.MaxLength)
 	}
-	return ""
+	return "" // can't happen
 }
 
 // Tokenized stores the data handling from a given response.
@@ -234,20 +252,10 @@ func loadProfile(profileFile string) (*Profile, error) {
 	if err = xml.Unmarshal(profileData, &profile); err != nil {
 		return nil, fmt.Errorf("error loading profile %s: %s\n", profileFile, err)
 	}
-	// Let's set the parent requests on all children.
-	for _, test := range profile.Tests {
-		if test.Requests == nil {
-			return nil, fmt.Errorf("error loading profile %s: there are no requests to send\n", profileFile)
-		}
-
-		for _, request := range test.Requests {
-			request.Validate()
-			if request.FwdCookies {
-				log.Warning("cannot use parent cookies in top request")
-			}
-			setParentRequest(request, request.Children)
-		}
+	if err = profile.Validate(); err != nil {
+		return nil, err
 	}
+
 	return &profile, nil
 }
 
@@ -257,7 +265,7 @@ func saveResult(profile *Profile, profileFile string) {
 		log.Error("failed %+v", err)
 		return
 	}
-	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02"))
+	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02 1504"))
 	ioutil.WriteFile(filename, content, 0644)
 	log.Notice("Saved output to %s.", filename)
 }
