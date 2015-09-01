@@ -135,6 +135,7 @@ func TestStressGauge(t *testing.T) {
 			}
 		}
 		stress(&profile)
+		// Let's now save the profile locally and test that all the information is stored correctly.
 	})
 }
 
