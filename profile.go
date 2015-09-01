@@ -216,7 +216,7 @@ func (t Tokenized) Format(resp *goreq.Response) (formatted string) {
 			var value string
 			err := json.Unmarshal(jsonResp[match[1]], &value)
 			if err != nil {
-				log.Warning(fmt.Sprintf("could not convert response JSON field `%s` to a string", match[1]))
+				log.Warning(fmt.Sprintf("could not convert response JSON field `%s` to a string: %s | json = %s", match[1], err, jsonResp))
 			}
 			formatted = strings.Replace(formatted, match[0], string(value), -1)
 		}

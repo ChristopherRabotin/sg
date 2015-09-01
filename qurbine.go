@@ -105,7 +105,6 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 			gresp, err := greq.Do()
 			<-r.ongoingReqs // We're done, let's make room for the next request.
 			resp := Response{Response: gresp, duration: time.Now().Sub(startTime)}
-			log.Debug("Request #%d to %s lasted %s.", no, r.URL, resp.duration)
 			// Let's add that request to the list of completed requests.
 			r.doneChan <- &resp
 			if err != nil {
@@ -121,8 +120,8 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 		if r.Children != nil {
 			log.Debug("Spawning children for %s.", r.URL)
 			for _, child := range r.Children {
-				// Note that we always use the LAST response as the parent response.
-				child.Spawn(r.doneReqs[len(r.doneReqs)-1].Response, wg)
+				// Note that we always use the FIRST response as the parent response.
+				child.Spawn(r.doneReqs[0].Response, wg)
 			}
 		}
 		log.Debug("Computing result of %s.", r.URL)

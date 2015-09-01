@@ -25,62 +25,58 @@ func TestStressGauge(t *testing.T) {
 		// Let's setup a test server.
 		var ts *httptest.Server
 		var requestHeaders http.Header
-		reqCount := 0
 		ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			reqCount++
 			requestHeaders = r.Header
-			if r.Method == "GET" && r.URL.Path == "/init" {
-				w.Header().Add("X-Custom-Hdr", "Custom Header")
-				http.SetCookie(w, &http.Cookie{Value: "42", Name: "cookie_val"})
-				w.WriteHeader(200)
-				marsh, err := json.Marshal(GETTestJSON{URL: r.URL.String(), IsJson: true, BushJr: "shame on you"})
-				if err != nil {
-					panic(err)
+			log.Notice(fmt.Sprintf("[TRACE] %s %s", r.Method, r.URL.Path))
+			if r.Method == "GET" {
+				switch r.URL.Path {
+				case "/init/":
+					w.Header().Add("X-Custom-Hdr", "Custom Header")
+					http.SetCookie(w, &http.Cookie{Value: "42", Name: "cookie_val"})
+					marsh, err := json.Marshal(GETTestJSON{URL: r.URL.String(), IsJson: true, BushJr: "shame on you"})
+					serveErrorOrBytes(w, err, marsh, t)
+				case "/slow/":
+					time.Sleep(time.Millisecond * 250)
+					w.WriteHeader(((time.Now().Nanosecond()%6)+1)*100 + 4) // allows checking all the valid status codes
 				}
-				fmt.Fprint(w, marsh)
-
 			} else if r.Method == "POST" {
-				if strings.HasPrefix("/cookie-fwd/", r.URL.String()) {
+				switch r.URL.Path {
+				case "/cookie-fwd/":
 					cookie, err := r.Cookie("cookie_val")
-					if err != nil {
-						panic(err) // Causes the test to fail.
-					} else if cookie.String() != "42" {
-						panic(fmt.Errorf("invalid cookie value: %s", cookie.String()))
-					} else {
-						w.WriteHeader(200)
+					if isErrNil(w, err) {
+						if cookie.Value != "42" {
+							returnFailure("cookie value not 42", w, t)
+						}
 						marsh, err := json.Marshal(GETTestJSON{URL: r.URL.String()})
-						if err != nil {
-							panic(err)
-						}
-						fmt.Fprint(w, marsh)
-					}
-				} else if strings.HasPrefix("/header/", r.URL.String()) {
-					if val := r.Header.Get("X-Custom-Hdr"); val == "" {
-						panic(fmt.Errorf("invalid X-Custom-Hdr value: %s", val))
+						serveErrorOrBytes(w, err, marsh, t)
 					} else {
-						w.WriteHeader(200)
+						returnFailure(fmt.Sprintf("cookie error: %s", err), w, t)
+					}
+				case "/header/":
+					if val := r.Header.Get("X-Custom-Header"); val == "" {
+						returnFailure(fmt.Sprintf("invalid X-Custom-Hdr value: %s", val), w, t)
+					} else {
 						marsh, err := json.Marshal(GETTestJSON{URL: r.URL.String(), CustomHdr: val})
-						if err != nil {
-							panic(err)
-						}
-						fmt.Fprint(w, marsh)
+						serveErrorOrBytes(w, err, marsh, t)
 					}
-				} else if strings.HasPrefix("/json/", r.URL.String()) {
-					defer r.Body.Close()
+				case "/json/":
 					data, err := ioutil.ReadAll(r.Body)
-					if err != nil {
-						panic(err)
-					}
-					var marsh GETTestJSON
-					json.Unmarshal(data, &marsh)
-					if marsh.BushJr == "shame on you" {
-						w.WriteHeader(204)
+					defer r.Body.Close()
+					if isErrNil(w, err) {
+						var marsh GETTestJSON
+						err = json.Unmarshal(data, &marsh)
+						if isErrNil(w, err) {
+							if marsh.BushJr != "shame on you" {
+								returnFailure(fmt.Sprintf("body is not `shame on you` but [%s] instead", marsh.BushJr), w, t)
+							} else {
+								w.WriteHeader(204)
+							}
+						} else {
+							returnFailure(fmt.Sprintf("could not unmarshal JSON: %s", err), w, t)
+						}
 					} else {
-						panic("no data received, or invalid data received")
+						returnFailure("could not read body", w, t)
 					}
-				} else if strings.HasPrefix("/slow/", r.URL.String()) {
-					time.Sleep(time.Second * 2)
-					w.WriteHeader(reqCount%6*100 + 4)
 				}
 			}
 
@@ -104,7 +100,7 @@ func TestStressGauge(t *testing.T) {
 								</request>
 								<request method="post" responseType="json" repeat="20"
 									useParentCookies="true" concurrency="10">
-									<url base="json" />
+									<url base="%s/json/" />
 									<data responseToken="resp" headerToken="hdr">
 										{"foolMeOnce": "resp/foolMeOnce"}
 									</data>
@@ -114,14 +110,54 @@ func TestStressGauge(t *testing.T) {
 								concurrency="50">
 								<url base="%s/slow/" />
 							</request>
+							<request method="put" responseType="json" repeat="1"
+								concurrency="1">
+								<url base="%s-not-uri/error/" />
+							</request>
 						</test>
-					</sg>`, ts.URL, ts.URL, ts.URL, ts.URL)
+					</sg>`, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL)
 		profile := Profile{}
 		err := xml.Unmarshal([]byte(profileData), &profile)
 		if err != nil {
 			panic(err)
 		}
 		profile.Validate()
+		// Let's confirm that the children are set properly.
+		checkNum := map[string]int{"init": 3, "slow": 0}
+		for _, test := range profile.Tests {
+			for _, req := range test.Requests {
+				for url, count := range checkNum {
+					if strings.Contains(req.URL.String(), url) {
+						if len(req.Children) != count {
+							panic("invalid number of children for init request")
+						}
+					}
+				}
+			}
+		}
 		stress(&profile)
 	})
+}
+
+func isErrNil(w http.ResponseWriter, err error) bool {
+	if err != nil {
+		log.Critical("%s", err)
+		w.WriteHeader(400)
+		return false
+	}
+	return true
+}
+
+func serveErrorOrBytes(w http.ResponseWriter, err error, data []byte, t *testing.T) {
+	if isErrNil(w, err) {
+		w.Write(data)
+	} else {
+		returnFailure(fmt.Sprintf("%s", err), w, t)
+	}
+}
+
+func returnFailure(msg string, w http.ResponseWriter, t *testing.T) {
+	log.Error(msg)
+	w.WriteHeader(400)
+	t.Fail()
 }
