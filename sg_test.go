@@ -27,7 +27,6 @@ func TestStressGauge(t *testing.T) {
 		var requestHeaders http.Header
 		ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestHeaders = r.Header
-			log.Notice(fmt.Sprintf("[TRACE] %s %s", r.Method, r.URL.Path))
 			if r.Method == "GET" {
 				switch r.URL.Path {
 				case "/init/":
@@ -115,7 +114,7 @@ func TestStressGauge(t *testing.T) {
 								<url base="%s-not-uri/error/" />
 							</request>
 						</test>
-					</sg>`, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL)
+					</sg>`, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL)
 		profile := Profile{}
 		err := xml.Unmarshal([]byte(profileData), &profile)
 		if err != nil {

@@ -238,3 +238,29 @@ func TestTokenized(t *testing.T) {
 		})
 	})
 }
+
+func TestProfileConstraints(t *testing.T) {
+	Convey("Profile validation should not be nominal", t, func() {
+		Convey("there are no tests", func() {
+			profileData := `<?xml version="1.0" encoding="UTF-8"?><sg name="Basic example" uid="1"><test name="Profile test" critical="1s" warning="750ms"/></sg>`
+			profile := Profile{}
+			xml.Unmarshal([]byte(profileData), &profile)
+			So(profile.Validate(), ShouldNotBeNil)
+		})
+		Convey("there cookie forwaring is enabled on top request", func() {
+			profileData := `<?xml version="1.0" encoding="UTF-8"?>
+			<sg name="Basic example" uid="1">
+				<test name="SG test" critical="1s" warning="750ms">
+					<description>This is the test for SG.</description>
+					<request method="get" responseType="json" repeat="20"
+						useParentCookies="true" concurrency="10">
+						<url base="http://google.com/search" />
+					</request>
+				</test>
+			</sg>`
+			profile := Profile{}
+			xml.Unmarshal([]byte(profileData), &profile)
+			So(func() { profile.Validate() }, ShouldNotPanic)
+		})
+	})
+}

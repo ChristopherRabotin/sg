@@ -25,14 +25,14 @@ type Profile struct {
 func (p *Profile) Validate() error {
 	// Let's set the parent requests on all children.
 	for _, test := range p.Tests {
-		if test.Requests == nil {
+		if test.Requests == nil || len(test.Requests) == 0 {
 			return fmt.Errorf("error loading profile %s: there are no requests to send\n", profileFile)
 		}
 
 		for _, request := range test.Requests {
 			request.Validate()
 			if request.FwdCookies {
-				log.Warning("cannot use parent cookies in top request")
+				log.Warning("using parent cookies in top request has no effect")
 			}
 			setParentRequest(request, request.Children)
 		}
