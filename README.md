@@ -1,5 +1,6 @@
 # Stress Gauge - sg
 sg allows one to gauge response times of an HTTP service under stress.
+
 [![Build Status](https://travis-ci.org/ChristopherRabotin/sg.svg?branch=master)](https://travis-ci.org/ChristopherRabotin/sg) [![Coverage Status](https://coveralls.io/repos/ChristopherRabotin/sg/badge.svg?branch=master&service=github)](https://coveralls.io/github/ChristopherRabotin/sg?branch=master)
 
 # Features
