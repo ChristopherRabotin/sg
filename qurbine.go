@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/franela/goreq"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -186,9 +187,10 @@ func (r *Request) ComputeResult(wg *sync.WaitGroup) {
 	result.Statuses = statusesVals
 	// If there is a parent, we set this as the result of a spawned parent.
 	if r.Parent != nil {
-		r.Parent.Result.childMutex.Lock()
+		r.Parent.Result.childMutex.Lock() // TODO: Fix data race.
 		r.Parent.Result.Spawned = append(r.Parent.Result.Spawned, &result)
 		r.Parent.Result.childMutex.Unlock()
+		runtime.Gosched()
 	} else {
 		r.Result = &result
 	}
