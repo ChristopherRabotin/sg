@@ -22,6 +22,7 @@ type Profile struct {
 	Tests []*StressTest `xml:"test"`
 }
 
+// Validate confirms that a profile is valid and sets the parent to all children requests.
 func (p *Profile) Validate() error {
 	// Let's set the parent requests on all children.
 	for _, test := range p.Tests {
@@ -259,13 +260,13 @@ func loadProfile(profileFile string) (*Profile, error) {
 	return &profile, nil
 }
 
-func saveResult(profile *Profile, profileFile string) {
+func saveResult(profile *Profile, profileFile string) string {
 	content, err := xml.MarshalIndent(profile, "", "\t")
 	if err != nil {
 		log.Error("failed %+v", err)
-		return
+		return ""
 	}
 	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02 1504"))
 	ioutil.WriteFile(filename, content, 0644)
-	log.Notice("Saved output to %s.", filename)
+	return filename
 }

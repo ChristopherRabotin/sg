@@ -35,9 +35,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-
 	stress(profile) // blocking call
-	saveResult(profile, profileFile)
+	log.Notice("Saved output to %s.", saveResult(profile, profileFile))
 }
 
 func stress(profile *Profile) {

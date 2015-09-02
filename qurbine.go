@@ -171,18 +171,27 @@ func (r *Request) ComputeResult(wg *sync.WaitGroup) {
 		HadData:    r.Data != nil && r.Data.IsUsed(),
 		HadHeader:  r.Headers != nil && r.Headers.IsUsed(),
 		StatusSum:  &summary,
-		Times:      NewPercentages(times)}
+		Times:      NewPercentages(times),
+		Spawned:    []*Result{},
+		childMutex: &sync.Mutex{}}
 
 	log.Notice("SUMMARY: %s %s", r, result.Times)
 
 	statusesVals := make([]Status, len(statuses))
 	i := 0
-	for _, s := range statusesVals {
+	for _, s := range statuses {
 		statusesVals[i] = s
 		i++
 	}
 	result.Statuses = statusesVals
-	r.Result = &result
+	// If there is a parent, we set this as the result of a spawned parent.
+	if r.Parent != nil {
+		r.Parent.Result.childMutex.Lock()
+		r.Parent.Result.Spawned = append(r.Parent.Result.Spawned, &result)
+		r.Parent.Result.childMutex.Unlock()
+	} else {
+		r.Result = &result
+	}
 	// Let's now unset the children because we don't need them anymore.
 	r.Children = nil
 	wg.Done()
@@ -219,9 +228,19 @@ type Result struct {
 	Times       *Percentages   `xml:"times"`
 	Statuses    []Status       `xml:"status"`
 	StatusSum   *StatusSummary `xml:"statuses"`
-	HadCookies  bool           `xml:"withCookies,attr"`
-	HadHeader   bool           `xml:"withHeaders,attr"`
-	HadData     bool           `xml:"withData,attr"`
+	Spawned     []*Result      `xml:"spawned"`
+	childMutex  *sync.Mutex
+	HadCookies  bool `xml:"withCookies,attr"`
+	HadHeader   bool `xml:"withHeaders,attr"`
+	HadData     bool `xml:"withData,attr"`
+}
+
+// Equals returns whether this request is equal to the one provided as an argument.
+func (r Result) Equals(o *Result) bool {
+	return r.Concurrency == o.Concurrency && r.HadCookies == o.HadCookies &&
+		r.HadData == o.HadData && r.HadHeader == o.HadHeader &&
+		r.Method == o.Method && r.Repetitions == o.Repetitions &&
+		r.URL == o.URL
 }
 
 // Status stores the number of times a given status was found.

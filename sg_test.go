@@ -15,7 +15,7 @@ import (
 
 type GETTestJSON struct {
 	URL       string `json:"URL"`
-	IsJson    bool   `json:"json"`
+	IsJSON    bool   `json:"json"`
 	BushJr    string `json:"foolMeOnce"`
 	CustomHdr string `json:"X-Custom-Hdr-Rcvd"`
 }
@@ -24,15 +24,13 @@ func TestStressGauge(t *testing.T) {
 	Convey("Stressing an HTTP Test server", t, func() {
 		// Let's setup a test server.
 		var ts *httptest.Server
-		var requestHeaders http.Header
 		ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requestHeaders = r.Header
 			if r.Method == "GET" {
 				switch r.URL.Path {
 				case "/init/":
 					w.Header().Add("X-Custom-Hdr", "Custom Header")
 					http.SetCookie(w, &http.Cookie{Value: "42", Name: "cookie_val"})
-					marsh, err := json.Marshal(GETTestJSON{URL: r.URL.String(), IsJson: true, BushJr: "shame on you"})
+					marsh, err := json.Marshal(GETTestJSON{URL: r.URL.String(), IsJSON: true, BushJr: "shame on you"})
 					serveErrorOrBytes(w, err, marsh, t)
 				case "/slow/":
 					time.Sleep(time.Millisecond * 250)
@@ -136,6 +134,29 @@ func TestStressGauge(t *testing.T) {
 		}
 		stress(&profile)
 		// Let's now save the profile locally and test that all the information is stored correctly.
+		filename := saveResult(&profile, "sg_test")
+		// And let's load this profile and check the values are those of the saved profile.
+		loadedProfile := Profile{}
+		loadedXML, err := ioutil.ReadFile(filename)
+		if err != nil {
+			panic(err)
+		}
+		err = xml.Unmarshal([]byte(loadedXML), &loadedProfile)
+		if err != nil {
+			panic(err)
+		}
+		// Let's check for each request in the test, that the result is identical to that computed before.
+		for rno, req := range profile.Tests[0].Requests {
+			So(req.Result.Equals(loadedProfile.Tests[0].Requests[rno].Result), ShouldEqual, true)
+			// Let's check the spawned results are correct too.
+			if len(req.Result.Spawned) == 0 {
+				So(len(loadedProfile.Tests[0].Requests[rno].Result.Spawned), ShouldEqual, 0)
+			} else {
+				for sno, spawn := range req.Result.Spawned {
+					So(spawn.Equals(loadedProfile.Tests[0].Requests[rno].Result.Spawned[sno]), ShouldEqual, true)
+				}
+			}
+		}
 	})
 }
 

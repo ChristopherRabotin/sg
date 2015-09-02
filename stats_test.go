@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/xml"
-	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
