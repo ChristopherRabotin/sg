@@ -1,0 +1,13 @@
+<Profile name="Basic example" uid="1">
+	<test name="Whatismyip.org" critical="1s" warning="750ms">
+		<description>Example of a URL which works.&#xA;&#x9;&#x9;</description>
+		<request method="POST" repeat="20" concurrency="10" responseType="json" useParentCookies="false">
+			<url base="http://whatismyip.org/"></url>
+			<result method="POST" url="http://whatismyip.org/" concurrency="10" repetitions="20" withCookies="false" withHeaders="false" withData="false">
+				<times mean="0" shortest="0.173404191" p10="0.176393288" p25="0.19115141300000002" p50="0.19659046400000002" p66="0.199011759" p75="0.21884825600000002" p80="0.244379211" p90="0.252276234" p95="0.29196298000000004" p98="0.29196298000000004" p99="0.29196298000000004" longest="0.29196298000000004"></times>
+				<status code="0" number="0"></status>
+				<statuses errored="0" s1xx="0" s2xx="20" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</result>
+		</request>
+	</test>
+</Profile>

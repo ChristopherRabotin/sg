@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sg name="Basic example" uid="1">
+	<!-- Each of the tests will be ran sequentially. -->
+	<test name="Example 1" critical="1s" warning="750ms">
+		<description>This is an example of a unique request.
+		</description>
+		<request method="post" responseType="json" repeat="20"
+			concurrency="10">
+			<url base="http://example.org:1599/some-endpoint" />
+		</request>
+	</test>
+
+	<test name="Example 2" critical="1s" warning="750ms">
+		<description>This is an example with children.
+		</description>
+
+		<request method="post" responseType="json" repeat="1"
+			concurrency="1">
+			<url base="http://example.org:1599/auth" />
+			<headers>Cookie: example=true;</headers>
+			<data>{"username": "admin", "password": "superstrong"}</data>
+			<!-- These 50 requests go right after the /auth request responds. -->
+			<request method="get" useParentCookies="true" repeat="25"
+				concurrency="5">
+				<url base="http://example.org:1598/expensive/token1-token2/token3/token4">
+					<token token="token1" choices="Val1|Val2" />
+					<token token="token2" pattern="alpha" min="5" max="10" />
+					<token token="token3" pattern="num" min="5" max="10" />
+					<token token="token4" pattern="alphanum" min="5" max="10" />
+				</url>
+			</request>
+			<!-- These 50 requests go right after the GET request go through. -->
+			<request method="put" repeat="25" concurrency="5">
+				<url base="http://example.org:7789/stress/PUT" />
+				<headers responseToken="resp" headerToken="hdr" cookieToken="cke">
+					Authorization:DecayingToken resp/token
+					Cookie:test=true;session_id=cke/session_id
+					Some-Header:hdr/Some-Header
+				</headers>
+				<data responseToken="resp" headerToken="hdr">
+					{"user_id":"resp/user_id", "action": "test"}
+				</data>
+			</request>
+		</request>
+	</test>
+
+	<test name="Whatismyip.org" critical="1s" warning="750ms">
+		<description>Example of a URL which works.
+		</description>
+		<request method="post" responseType="json" repeat="20"
+			concurrency="10">
+			<url base="http://whatismyip.org/" />
+		</request>
+	</test>
+</sg>
