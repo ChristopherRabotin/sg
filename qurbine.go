@@ -97,21 +97,25 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 	}()
 
 	// Let's spawn all the requests, with their respective concurrency.
+	wg.Add(r.Repeat)
+	r.doneWg.Add(r.Repeat)
 	for rno := 1; rno <= r.Repeat; rno++ {
-		wg.Add(1)
-		r.doneWg.Add(1)
 		go func(no int, greq goreq.Request) {
-			r.ongoingReqs <- struct{}{} // Adding sentinel value to limit concurrency
+			r.ongoingReqs <- struct{}{} // Adding sentinel value to limit concurrency.
 			startTime := time.Now()
 			greq.Uri = r.URL.Generate()
 			gresp, err := greq.Do()
+			if err != nil {
+				log.Critical("could not send request to #%d %s: %s", no, r.URL, err)
+			} else if no < r.Repeat {
+				// We're always using the last response for the next batch of requests.
+				gresp.Body.Close()
+			}
 			<-r.ongoingReqs // We're done, let's make room for the next request.
 			resp := Response{Response: gresp, duration: time.Now().Sub(startTime)}
 			// Let's add that request to the list of completed requests.
 			r.doneChan <- &resp
-			if err != nil {
-				log.Critical("could not send request to %s: %s", r.URL, err)
-			}
+			runtime.Gosched()
 		}(rno, greq)
 	}
 
@@ -134,7 +138,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 		if r.Children != nil {
 			log.Debug("Spawning children for %s.", r.URL)
 			for _, child := range r.Children {
-				// Note that we always use the FIRST response as the parent response.
+				// Note that we always use the LAST response as the parent response.
 				child.Spawn(r.doneReqs[0].Response, wg)
 			}
 		}
