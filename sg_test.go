@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +36,8 @@ func TestStressGauge(t *testing.T) {
 				case "/slow/":
 					time.Sleep(time.Millisecond * 250)
 					w.WriteHeader(((time.Now().Nanosecond()%6)+1)*100 + 4) // allows checking all the valid status codes
+				case "/204/":
+					w.WriteHeader(204)
 				}
 			} else if r.Method == "POST" {
 				switch r.URL.Path {
@@ -107,6 +110,10 @@ func TestStressGauge(t *testing.T) {
 								concurrency="50">
 								<url base="%s/slow/" />
 							</request>
+							<request method="get" responseType="json" repeat="10000"
+								concurrency="500">
+								<url base="%s/204/" />
+							</request>
 							<request method="put" responseType="json" repeat="1"
 								concurrency="1">
 								<url base="%s-not-uri/error/" />
@@ -157,6 +164,8 @@ func TestStressGauge(t *testing.T) {
 				}
 			}
 		}
+		// Finally let's delete the test file.
+		os.Remove(filename)
 	})
 }
 

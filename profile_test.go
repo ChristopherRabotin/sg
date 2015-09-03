@@ -90,6 +90,7 @@ func TestURL(t *testing.T) {
 					matched, err := regexp.MatchString("[A-Za-z]{5,10}", tok.Generate())
 					So(err, ShouldEqual, nil)
 					So(matched, ShouldEqual, true)
+					So(tok.Generate(), ShouldNotEqual, tok.Generate())
 				case "token3":
 					So(tok.Choices, ShouldEqual, "")
 					So(tok.Pattern, ShouldEqual, "num")
@@ -98,6 +99,7 @@ func TestURL(t *testing.T) {
 					matched, err := regexp.MatchString("[0-9]{5,10}", tok.Generate())
 					So(err, ShouldEqual, nil)
 					So(matched, ShouldEqual, true)
+					So(tok.Generate(), ShouldNotEqual, tok.Generate())
 				case "token4":
 					So(tok.Choices, ShouldEqual, "")
 					So(tok.Pattern, ShouldEqual, "alphanum")
@@ -106,6 +108,7 @@ func TestURL(t *testing.T) {
 					matched, err := regexp.MatchString("[A-Za-z0-9]{5,10}", tok.Generate())
 					So(err, ShouldEqual, nil)
 					So(matched, ShouldEqual, true)
+					So(tok.Generate(), ShouldNotEqual, tok.Generate())
 				}
 			}
 			So(out.Validate, ShouldNotPanic)

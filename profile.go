@@ -105,7 +105,7 @@ type URLToken struct {
 }
 
 // Validate checks that the definition of this token is met, and panics otherwise.
-func (t *URLToken) Validate() {
+func (t URLToken) Validate() {
 	if t.Token == "" {
 		panic("empty token in URL definition")
 	}
@@ -134,7 +134,7 @@ func (t *URLToken) Validate() {
 }
 
 // Generate returns a new value for a token according to the definition.
-func (t *URLToken) Generate() (r string) {
+func (t URLToken) Generate() (r string) {
 	if t.Choices != "" {
 		r, _ = randutil.ChoiceString(strings.Split(t.Choices, "|"))
 	}
