@@ -81,11 +81,11 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 			r.doneWg.Done()
 			perc := float64(len(r.doneReqs)) / float64(r.Repeat)
 			notify := false
-			if perc >= 0.75 && perc-0.75 < 0.01 {
+			if perc >= 0.75 && perc-0.75 < 1e-4 {
 				notify = true
-			} else if perc >= 0.5 && perc-0.5 < 0.01 {
+			} else if perc >= 0.5 && perc-0.5 < 1e-4 {
 				notify = true
-			} else if perc >= 0.25 && perc-0.25 < 0.01 {
+			} else if perc >= 0.25 && perc-0.25 < 1e-4 {
 				notify = true
 			} else if len(r.doneReqs)%100 == 0 {
 				notify = true
