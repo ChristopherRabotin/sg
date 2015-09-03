@@ -45,8 +45,8 @@ func stress(profile *Profile) {
 		for _, r := range test.Requests {
 			r.Spawn(nil, &completionWg)
 		}
+		completionWg.Wait()
 	}
-	completionWg.Wait()
 
 	log.Notice("Sent a total of %d requests.", totalSentRequests)
 }

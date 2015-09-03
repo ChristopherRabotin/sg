@@ -111,7 +111,7 @@ func TestStressGauge(t *testing.T) {
 								<url base="%s/slow/" />
 							</request>
 							<request method="get" responseType="json" repeat="10000"
-								concurrency="500">
+								concurrency="350">
 								<url base="%s/204/" />
 							</request>
 							<request method="put" responseType="json" repeat="1"
