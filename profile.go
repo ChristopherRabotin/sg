@@ -266,7 +266,7 @@ func saveResult(profile *Profile, profileFile string) string {
 		log.Error("failed %+v", err)
 		return ""
 	}
-	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02 1504"))
+	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02_1504"))
 	ioutil.WriteFile(filename, content, 0644)
 	return filename
 }
