@@ -53,7 +53,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 	if r.Data != nil {
 		body = r.Data.Format(parent)
 	}
-	greq := goreq.Request{Method: r.Method, Uri: r.URL.Generate(), Body: body}
+	greq := goreq.Request{Method: r.Method, Body: body}
 	// Let's set the headers, if needed.
 	if r.Headers != nil {
 		for _, line := range strings.Split(r.Headers.Format(parent), "\n") {
@@ -81,11 +81,11 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 			r.doneWg.Done()
 			perc := float64(len(r.doneReqs)) / float64(r.Repeat)
 			notify := false
-			if perc >= 0.75 && perc-0.75 < 0.01 {
+			if perc >= 0.75 && perc-0.75 < 1e-4 {
 				notify = true
-			} else if perc >= 0.5 && perc-0.5 < 0.01 {
+			} else if perc >= 0.5 && perc-0.5 < 1e-4 {
 				notify = true
-			} else if perc >= 0.25 && perc-0.25 < 0.01 {
+			} else if perc >= 0.25 && perc-0.25 < 1e-4 {
 				notify = true
 			} else if len(r.doneReqs)%100 == 0 {
 				notify = true
@@ -100,24 +100,37 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 	for rno := 1; rno <= r.Repeat; rno++ {
 		wg.Add(1)
 		r.doneWg.Add(1)
-		go func(no int) {
+		go func(no int, greq goreq.Request) {
 			r.ongoingReqs <- struct{}{} // Adding sentinel value to limit concurrency
 			startTime := time.Now()
+			greq.Uri = r.URL.Generate()
 			gresp, err := greq.Do()
 			<-r.ongoingReqs // We're done, let's make room for the next request.
 			resp := Response{Response: gresp, duration: time.Now().Sub(startTime)}
 			// Let's add that request to the list of completed requests.
 			r.doneChan <- &resp
 			if err != nil {
-				log.Critical("could not send request to %s: %s", greq.Uri, err)
+				log.Critical("could not send request to %s: %s", r.URL, err)
 			}
-		}(rno)
+		}(rno, greq)
 	}
 
 	// Let's now have a go routine which waits for all the requests to complete
 	// and spawns all the children.
 	go func() {
 		r.doneWg.Wait()
+		// We don't need the parent response anymore, so let's close it.
+		if parent != nil && parent.Response != nil && parent.Response.Body != nil {
+			parent.Response.Body.Close()
+		}
+
+		// Now that we have spawned all the children, let's close all the bodies but the one used in children.
+		for i := 1; i < len(r.doneReqs); i++ {
+			if r.doneReqs[i].Response != nil && r.doneReqs[i].Response.Body != nil {
+				r.doneReqs[i].Response.Body.Close()
+			}
+		}
+
 		if r.Children != nil {
 			log.Debug("Spawning children for %s.", r.URL)
 			for _, child := range r.Children {
@@ -132,7 +145,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 
 // ComputeResult computes the results for the given request.
 func (r *Request) ComputeResult(wg *sync.WaitGroup) {
-	wg.Add(1) // Make sure this blocks output generation until we complete computation.
+	wg.Add(1) // Make sure this blocks output generation until we complete computation (sharing the WG with the request).
 	times := []time.Duration{}
 	statuses := make(map[int]Status)
 	summary := StatusSummary{}

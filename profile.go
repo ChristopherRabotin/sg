@@ -105,7 +105,7 @@ type URLToken struct {
 }
 
 // Validate checks that the definition of this token is met, and panics otherwise.
-func (t *URLToken) Validate() {
+func (t URLToken) Validate() {
 	if t.Token == "" {
 		panic("empty token in URL definition")
 	}
@@ -134,7 +134,7 @@ func (t *URLToken) Validate() {
 }
 
 // Generate returns a new value for a token according to the definition.
-func (t *URLToken) Generate() (r string) {
+func (t URLToken) Generate() (r string) {
 	if t.Choices != "" {
 		r, _ = randutil.ChoiceString(strings.Split(t.Choices, "|"))
 	}
@@ -266,7 +266,7 @@ func saveResult(profile *Profile, profileFile string) string {
 		log.Error("failed %+v", err)
 		return ""
 	}
-	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02 1504"))
+	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02_1504"))
 	ioutil.WriteFile(filename, content, 0644)
 	return filename
 }
