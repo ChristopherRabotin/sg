@@ -110,7 +110,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 			// Let's add that request to the list of completed requests.
 			r.doneChan <- &resp
 			if err != nil {
-				log.Critical("could not send request to %s: %s", greq.Uri, err)
+				log.Critical("could not send request to %s: %s", r.URL, err)
 			}
 		}(rno, greq)
 	}
@@ -145,7 +145,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 
 // ComputeResult computes the results for the given request.
 func (r *Request) ComputeResult(wg *sync.WaitGroup) {
-	wg.Add(1) // Make sure this blocks output generation until we complete computation.
+	wg.Add(1) // Make sure this blocks output generation until we complete computation (sharing the WG with the request).
 	times := []time.Duration{}
 	statuses := make(map[int]Status)
 	summary := StatusSummary{}
