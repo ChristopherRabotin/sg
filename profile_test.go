@@ -139,15 +139,15 @@ func TestURL(t *testing.T) {
 func TestLoadProfile(t *testing.T) {
 	Convey("Loading profiles works as expected", t, func() {
 		Convey("Loading nothing", func() {
-			_, err := loadProfile("")
+			err := loadProfile("")
 			So(err, ShouldNotEqual, nil)
 		})
 		Convey("Loading a non existing file", func() {
-			_, err := loadProfile("this_file_does_not_exist")
+			err := loadProfile("this_file_does_not_exist")
 			So(err, ShouldNotEqual, nil)
 		})
 		Convey("Loading the basic example", func() {
-			profile, err := loadProfile("./docs/examples/basic.xml")
+			err := loadProfile("./docs/examples/basic.xml")
 			So(err, ShouldEqual, nil)
 			// Let's now check that the basic example was loaded correctly.
 			So(profile.Name, ShouldEqual, "Basic example")

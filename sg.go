@@ -18,7 +18,11 @@ var profileFile string
 // completionWg is the completion wait group, which will wait for all requests to go through.
 var completionWg sync.WaitGroup
 
+// totalSentRequests stores the total number of sent requests.
 var totalSentRequests int
+
+// profile stores the profile to stress.
+var profile *Profile
 
 // init parses the flags.
 func init() {
@@ -30,7 +34,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	profile, err := loadProfile(profileFile)
+	err := loadProfile(profileFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

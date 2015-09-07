@@ -26,6 +26,10 @@ func TestStressGauge(t *testing.T) {
 		// Let's setup a test server.
 		var ts *httptest.Server
 		ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// All the requests should have the appropriate user agent, so let's check that.
+			if r.UserAgent() != "StressGauge/0.x" {
+				returnFailure(fmt.Sprintf("User-Agent set to [%s] instead of [StressGauge/0.x]", r.UserAgent()), w, t)
+			}
 			if r.Method == "GET" {
 				switch r.URL.Path {
 				case "/init/":
@@ -82,7 +86,7 @@ func TestStressGauge(t *testing.T) {
 
 		}))
 		profileData := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-					<sg name="Basic example" uid="1">
+					<sg name="Basic example" uid="1" user-agent="StressGauge/0.x">
 						<test name="SG test" critical="1s" warning="750ms">
 							<description>This is the test for SG.</description>
 							<request method="get" responseType="json" repeat="1"

@@ -17,9 +17,10 @@ import (
 
 // Profile stores the whole test profile
 type Profile struct {
-	Name  string        `xml:"name,attr"`
-	UID   string        `xml:"uid,attr"`
-	Tests []*StressTest `xml:"test"`
+	Name      string        `xml:"name,attr"`
+	UID       string        `xml:"uid,attr"`
+	UserAgent string        `xml:"user-agent,attr"`
+	Tests     []*StressTest `xml:"test"`
 }
 
 // Validate confirms that a profile is valid and sets the parent to all children requests.
@@ -241,23 +242,25 @@ func (t Tokenized) String() string {
 }
 
 // loadProfile loads a profile XML file.
-func loadProfile(profileFile string) (*Profile, error) {
+func loadProfile(profileFile string) error {
 	if profileFile == "" {
-		return nil, errors.New("profile filename is empty")
+		return errors.New("profile filename is empty")
 	}
 	profileData, err := ioutil.ReadFile(profileFile)
 	if err != nil {
-		return nil, fmt.Errorf("error loading profile %s: %s\n", profileFile, err)
+		return fmt.Errorf("error loading profile %s: %s\n", profileFile, err)
 	}
-	profile := Profile{}
-	if err = xml.Unmarshal(profileData, &profile); err != nil {
-		return nil, fmt.Errorf("error loading profile %s: %s\n", profileFile, err)
-	}
-	if err = profile.Validate(); err != nil {
-		return nil, err
+	p := Profile{}
+	if err = xml.Unmarshal(profileData, &p); err != nil {
+		return fmt.Errorf("error loading profile %s: %s\n", profileFile, err)
 	}
 
-	return &profile, nil
+	profile = &p
+	if err = p.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func saveResult(profile *Profile, profileFile string) string {
