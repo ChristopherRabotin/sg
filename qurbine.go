@@ -53,7 +53,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 	if r.Data != nil {
 		body = r.Data.Format(parent)
 	}
-	greq := goreq.Request{Method: r.Method, Body: body}
+	greq := goreq.Request{Method: r.Method, Body: body, UserAgent: profile.UserAgent}
 	// Let's set the headers, if needed.
 	if r.Headers != nil {
 		for _, line := range strings.Split(r.Headers.Format(parent), "\n") {
