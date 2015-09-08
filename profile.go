@@ -49,7 +49,7 @@ type StressTest struct {
 	CriticalTh  Duration   `xml:"critical,attr"` // Duration above the critical level.
 	WarningTh   Duration   `xml:"warning,attr"`  // Duration above the warning level.
 	Requests    []*Request `xml:"request"`       // Top-level requests for this test.
-	Result      *Result    `xml:"result"`        // Test results, populated only after the tests run.
+	Result      []*Result  `xml:"result"`        // Test results, populated only after the tests run.
 }
 
 func (t StressTest) String() string {
@@ -264,7 +264,14 @@ func loadProfile(profileFile string) error {
 }
 
 func saveResult(profile *Profile, profileFile string) string {
-	// Let's move the top result from the request to the StressTest. TODO: Also set whether the duration is within constraints.
+	// Let's move the top result from the request to the StressTest.
+	for _, test := range profile.Tests {
+		test.Result = make([]*Result, len(test.Requests))
+		for i, req := range test.Requests {
+			test.Result[i] = req.Result
+		}
+		test.Requests = nil
+	}
 	content, err := xml.MarshalIndent(profile, "", "\t")
 	if err != nil {
 		log.Error("failed %+v", err)
