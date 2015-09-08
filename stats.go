@@ -1,15 +1,16 @@
 package main
 
 import (
+	"encoding/xml"
 	"fmt"
 	"sort"
 	"time"
-	"encoding/xml"
 )
 
 // Duration allows automatic unmarshaling of a duration from XML.
 type Duration struct {
-	time.Duration
+	Duration time.Duration `xml:"value,attr"`
+	State    string        `xml:"state,attr"`
 }
 
 // UnmarshalXMLAttr unmarshals a duration.
@@ -18,12 +19,15 @@ func (dur *Duration) UnmarshalXMLAttr(attr xml.Attr) (err error) {
 	if err != nil {
 		return
 	}
-	*dur = Duration{parsed}
+	*dur = Duration{Duration: parsed}
 	return nil
 }
 
+func (dur *Duration) String() string {
+	return dur.Duration.String()
+}
+
 // MarshalXMLAttr implements the xml.MarshalerAttr interface.
-// Attributes will be serialized with a value of "0" or "1".
 func (dur *Duration) MarshalXMLAttr(name xml.Name) (attr xml.Attr, err error) {
 	attr.Name = name
 	attr.Value = dur.String()
@@ -53,42 +57,42 @@ type Percentages struct {
 func NewPercentages(vals []time.Duration) *Percentages {
 	dVals := make([]Duration, len(vals))
 	for i, v := range vals {
-		dVals[i] = Duration{v}
+		dVals[i] = Duration{Duration: v}
 	}
 	p := Percentages{vals: dVals, length: len(vals)}
-	sort.Sort(p)
-	p.P1 = Duration{p.Percentage(1)}
-	p.P10 = Duration{p.Percentage(10)}
-	p.P25 = Duration{p.Percentage(25)}
-	p.P50 = Duration{p.Percentage(50)}
-	p.P66 = Duration{p.Percentage(66)}
-	p.P75 = Duration{p.Percentage(75)}
-	p.P80 = Duration{p.Percentage(80)}
-	p.P90 = Duration{p.Percentage(90)}
-	p.P95 = Duration{p.Percentage(95)}
-	p.P98 = Duration{p.Percentage(98)}
-	p.P99 = Duration{p.Percentage(99)}
-	p.P100 = Duration{p.Percentage(100)}
+	sort.Sort(&p)
+	p.P1 = Duration{Duration: p.Percentage(1)}
+	p.P10 = Duration{Duration: p.Percentage(10)}
+	p.P25 = Duration{Duration: p.Percentage(25)}
+	p.P50 = Duration{Duration: p.Percentage(50)}
+	p.P66 = Duration{Duration: p.Percentage(66)}
+	p.P75 = Duration{Duration: p.Percentage(75)}
+	p.P80 = Duration{Duration: p.Percentage(80)}
+	p.P90 = Duration{Duration: p.Percentage(90)}
+	p.P95 = Duration{Duration: p.Percentage(95)}
+	p.P98 = Duration{Duration: p.Percentage(98)}
+	p.P99 = Duration{Duration: p.Percentage(99)}
+	p.P100 = Duration{Duration: p.Percentage(100)}
 	return &p
 }
 
 // Len is for the Sorter interface.
-func (p Percentages) Len() int {
+func (p *Percentages) Len() int {
 	return p.length
 }
 
 // Less is for the Sorter interface.
-func (p Percentages) Less(i, j int) bool {
+func (p *Percentages) Less(i, j int) bool {
 	return p.vals[i].Duration < p.vals[j].Duration
 }
 
 // Swap is for the Sorter interface.
-func (p Percentages) Swap(i, j int) {
+func (p *Percentages) Swap(i, j int) {
 	p.vals[i], p.vals[j] = p.vals[j], p.vals[i]
 }
 
 // Percentage returns the items in position X.
-func (p Percentages) Percentage(v int) time.Duration {
+func (p *Percentages) Percentage(v int) time.Duration {
 	if v < 0 || v > 100 {
 		panic(fmt.Errorf("incorrect value requested %f", v))
 	}
@@ -106,14 +110,27 @@ func (p *Percentages) Mean() time.Duration {
 	if p.MeanValue.Duration == 0 && p.length > 0 {
 		sum := int64(0)
 		for i := 0; i < p.length; i++ {
-			sum += p.vals[i].Nanoseconds()
+			sum += p.vals[i].Duration.Nanoseconds()
 		}
 		p.MeanValue.Duration = time.Duration(sum / int64(p.length))
 	}
 	return p.MeanValue.Duration
 }
 
+// SetState sets the state of each percentile based on the input parameters.
+func (p *Percentages) SetState(critical time.Duration, warning time.Duration) {
+	for i := 0; i < p.length; i++ {
+		if p.vals[i].Duration >= critical {
+			p.vals[i].State = "critical"
+		} else if p.vals[i].Duration >= warning {
+			p.vals[i].State = "warning"
+		} else {
+			p.vals[i].State = "nominal"
+		}
+	}
+}
+
 //String implements the Stringer interface.
 func (p *Percentages) String() string {
-	return fmt.Sprintf("Shortest: %s Median: %s Q3: %s P95: %s Longest: %s", p.P1, p.P50, p.P75, p.P95, p.P100)
+	return fmt.Sprintf("Shortest: %s Median: %s Q3: %s P95: %s Longest: %s", p.P1.String(), p.P50.String(), p.P75.String(), p.P95.String(), p.P100.String())
 }

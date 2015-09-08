@@ -53,7 +53,7 @@ type StressTest struct {
 }
 
 func (t StressTest) String() string {
-	return fmt.Sprintf("%s (critical=%s, warning=%s)", t.Name, t.CriticalTh, t.WarningTh)
+	return fmt.Sprintf("%s (critical=%s, warning=%s)", t.Name, t.CriticalTh.String(), t.WarningTh.String())
 }
 
 // URL handles URL generation based on the requested pattern.
@@ -264,6 +264,7 @@ func loadProfile(profileFile string) error {
 }
 
 func saveResult(profile *Profile, profileFile string) string {
+	// Let's move the top result from the request to the StressTest. TODO: Also set whether the duration is within constraints.
 	content, err := xml.MarshalIndent(profile, "", "\t")
 	if err != nil {
 		log.Error("failed %+v", err)
