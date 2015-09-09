@@ -9,8 +9,19 @@ import (
 
 // Duration allows automatic unmarshaling of a duration from XML.
 type Duration struct {
-	Duration time.Duration `xml:"value,attr"`
-	State    string        `xml:"state,attr"`
+	Duration time.Duration
+	State    string
+}
+
+// SetState sets the state of each percentile based on the input parameters.
+func (dur *Duration) SetState(critical time.Duration, warning time.Duration) {
+	if dur.Duration >= critical {
+		dur.State = "critical"
+	} else if dur.Duration >= warning {
+		dur.State = "warning"
+	} else {
+		dur.State = "nominal"
+	}
 }
 
 // UnmarshalXMLAttr unmarshals a duration.
@@ -34,46 +45,39 @@ func (dur *Duration) MarshalXMLAttr(name xml.Name) (attr xml.Attr, err error) {
 	return
 }
 
+// MarshalXML is a custom marshaller for Duration.
+func (dur *Duration) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Attr = []xml.Attr{xml.Attr{Name: xml.Name{Local: "duration"}, Value: dur.Duration.String()},
+		xml.Attr{Name: xml.Name{Local: "state"}, Value: dur.State},
+	}
+	e.EncodeToken(start)
+	e.EncodeToken(xml.EndElement{Name: start.Name})
+	return nil
+}
+
 // Percentages stores some Percentagess.
 type Percentages struct {
-	MeanValue Duration `xml:"mean,attr"`
-	P1        Duration `xml:"shortest,attr"`
-	P10       Duration `xml:"p10,attr"`
-	P25       Duration `xml:"p25,attr"`
-	P50       Duration `xml:"p50,attr"`
-	P66       Duration `xml:"p66,attr"`
-	P75       Duration `xml:"p75,attr"`
-	P80       Duration `xml:"p80,attr"`
-	P90       Duration `xml:"p90,attr"`
-	P95       Duration `xml:"p95,attr"`
-	P98       Duration `xml:"p98,attr"`
-	P99       Duration `xml:"p99,attr"`
-	P100      Duration `xml:"longest,attr"`
-	vals      []Duration
+	MeanValue Duration `xml:"mean"`
+	vals      []*Duration
 	length    int
 }
 
-// NewPercentages returns a stuct which helps in serializing request results.
-func NewPercentages(vals []time.Duration) *Percentages {
-	dVals := make([]Duration, len(vals))
-	for i, v := range vals {
-		dVals[i] = Duration{Duration: v}
+func (p *Percentages) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	e.EncodeToken(start)
+	p.MeanValue.MarshalXML(e, xml.StartElement{Name: xml.Name{Local: "mean"}})
+	var elName string
+	for _, perc := range []int{0, 10, 25, 50, 66, 75, 80, 90, 95, 98, 99, 100} {
+		if perc == 0 {
+			elName = "shortest"
+		} else if perc == 100 {
+			elName = "longest"
+		} else {
+			elName = fmt.Sprintf("p%d", perc)
+		}
+		p.Percentage(perc).MarshalXML(e, xml.StartElement{Name: xml.Name{Local: elName}})
 	}
-	p := Percentages{vals: dVals, length: len(vals)}
-	sort.Sort(&p)
-	p.P1 = Duration{Duration: p.Percentage(1)}
-	p.P10 = Duration{Duration: p.Percentage(10)}
-	p.P25 = Duration{Duration: p.Percentage(25)}
-	p.P50 = Duration{Duration: p.Percentage(50)}
-	p.P66 = Duration{Duration: p.Percentage(66)}
-	p.P75 = Duration{Duration: p.Percentage(75)}
-	p.P80 = Duration{Duration: p.Percentage(80)}
-	p.P90 = Duration{Duration: p.Percentage(90)}
-	p.P95 = Duration{Duration: p.Percentage(95)}
-	p.P98 = Duration{Duration: p.Percentage(98)}
-	p.P99 = Duration{Duration: p.Percentage(99)}
-	p.P100 = Duration{Duration: p.Percentage(100)}
-	return &p
+	e.EncodeToken(xml.EndElement{Name: start.Name})
+	return nil
 }
 
 // Len is for the Sorter interface.
@@ -92,17 +96,17 @@ func (p *Percentages) Swap(i, j int) {
 }
 
 // Percentage returns the items in position X.
-func (p *Percentages) Percentage(v int) time.Duration {
+func (p *Percentages) Percentage(v int) *Duration {
 	if v < 0 || v > 100 {
 		panic(fmt.Errorf("incorrect value requested %f", v))
 	}
 	if v == 0 {
-		return p.vals[0].Duration
+		return p.vals[0]
 	}
 	if v == 100 {
-		return p.vals[p.length-1].Duration
+		return p.vals[p.length-1]
 	}
-	return p.vals[int(float64(p.length)*float64(v)/100)].Duration
+	return p.vals[int(float64(p.length)*float64(v)/100)]
 }
 
 // Mean returns the mean of this set of values.
@@ -120,17 +124,23 @@ func (p *Percentages) Mean() time.Duration {
 // SetState sets the state of each percentile based on the input parameters.
 func (p *Percentages) SetState(critical time.Duration, warning time.Duration) {
 	for i := 0; i < p.length; i++ {
-		if p.vals[i].Duration >= critical {
-			p.vals[i].State = "critical"
-		} else if p.vals[i].Duration >= warning {
-			p.vals[i].State = "warning"
-		} else {
-			p.vals[i].State = "nominal"
-		}
+		p.vals[i].SetState(critical, warning)
 	}
+	p.MeanValue.SetState(critical, warning)
 }
 
 //String implements the Stringer interface.
 func (p *Percentages) String() string {
-	return fmt.Sprintf("Shortest: %s Median: %s Q3: %s P95: %s Longest: %s", p.P1.String(), p.P50.String(), p.P75.String(), p.P95.String(), p.P100.String())
+	return fmt.Sprintf("Shortest: %s Median: %s Q3: %s P95: %s Longest: %s", p.Percentage(1).String(), p.Percentage(50).String(), p.Percentage(75).String(), p.Percentage(95).String(), p.Percentage(100).String())
+}
+
+// NewPercentages returns a stuct which helps in serializing request results.
+func NewPercentages(vals []time.Duration) *Percentages {
+	dVals := make([]*Duration, len(vals))
+	for i, v := range vals {
+		dVals[i] = &Duration{Duration: v}
+	}
+	p := Percentages{vals: dVals, length: len(vals)}
+	sort.Sort(&p)
+	return &p
 }

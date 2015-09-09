@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	//"os"
 	"strings"
 	"testing"
 	"time"
@@ -145,7 +145,7 @@ func TestStressGauge(t *testing.T) {
 		}
 		stress(&profile)
 		// Let's now save the profile locally and test that all the information is stored correctly.
-		filename := saveResult(&profile, "sg_test")
+		filename := saveResult(&profile, "sg_output_test")
 		// And let's load this profile and check the values are those of the saved profile.
 		loadedProfile := Profile{}
 		loadedXML, err := ioutil.ReadFile(filename)
@@ -169,7 +169,7 @@ func TestStressGauge(t *testing.T) {
 			}
 		}
 		// Finally let's delete the test file.
-		os.Remove(filename)
+		//os.Remove(filename)
 	})
 }
 

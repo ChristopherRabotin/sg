@@ -262,6 +262,15 @@ func (r Result) Equals(o *Result) bool {
 		r.URL == o.URL
 }
 
+// SetTimeState recursively sets the state of all results.
+func (r Result) SetTimeState(critical time.Duration, warning time.Duration) {
+	if r.Spawned != nil {
+		for _, spawned := range r.Spawned {
+			spawned.SetTimeState(critical, warning)
+		}
+	}
+}
+
 // Status stores the number of times a given status was found.
 type Status struct {
 	Code  int `xml:"code,attr"`

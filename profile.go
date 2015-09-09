@@ -263,11 +263,13 @@ func loadProfile(profileFile string) error {
 	return nil
 }
 
+// saveResult persists the results as XML.
 func saveResult(profile *Profile, profileFile string) string {
 	// Let's move the top result from the request to the StressTest.
 	for _, test := range profile.Tests {
 		test.Result = make([]*Result, len(test.Requests))
 		for i, req := range test.Requests {
+			req.Result.SetTimeState(test.CriticalTh.Duration, test.WarningTh.Duration)
 			test.Result[i] = req.Result
 		}
 		test.Requests = nil
