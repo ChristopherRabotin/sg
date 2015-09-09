@@ -269,6 +269,7 @@ func (r Result) SetTimeState(critical time.Duration, warning time.Duration) {
 			spawned.SetTimeState(critical, warning)
 		}
 	}
+	r.Times.SetState(critical, warning)
 }
 
 // Status stores the number of times a given status was found.

@@ -131,7 +131,8 @@ func (p *Percentages) SetState(critical time.Duration, warning time.Duration) {
 
 //String implements the Stringer interface.
 func (p *Percentages) String() string {
-	return fmt.Sprintf("Shortest: %s Median: %s Q3: %s P95: %s Longest: %s", p.Percentage(1).String(), p.Percentage(50).String(), p.Percentage(75).String(), p.Percentage(95).String(), p.Percentage(100).String())
+	return fmt.Sprintf("Shortest: %s Median: %s Q3: %s P95: %s Longest: %s", p.Percentage(1).String(),
+		p.Percentage(50).String(), p.Percentage(75).String(), p.Percentage(95).String(), p.Percentage(100).String())
 }
 
 // NewPercentages returns a stuct which helps in serializing request results.
