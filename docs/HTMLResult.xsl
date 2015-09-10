@@ -22,29 +22,52 @@
 		</html>
 	</xsl:template>
 	<xsl:template match="test">
-		<h1>
-			<xsl:value-of select="@name" />
-		</h1>
 		<div class="container">
-			<p class="text-muted row">
-				<xsl:value-of select="description" />
-			</p>
-			<p class="text-muted row">
-				Critical threshold set to
-				<span class="bg-danger">
-					<xsl:value-of select="concat(' ', @critical, ' ')" />
-				</span>
-				.
-				Warning threshold set to
-				<span class="bg-warning">
-					<xsl:value-of select="concat(' ', @warning, ' ')" />
-				</span>
-				.
-			</p>
-			<xsl:apply-templates select="result" />
+			<h1>
+				<xsl:value-of select="@name" />
+			</h1>
+			<div class="col-md-12">
+				<p class="text-muted row">
+					<xsl:value-of select="description" />
+				</p>
+				<p class="text-muted row">
+					Critical threshold set to
+					<span class="bg-danger">
+						<xsl:value-of select="concat(' ', @critical, ' ')" />
+					</span>
+					.
+					Warning threshold set to
+					<span class="bg-warning">
+						<xsl:value-of select="concat(' ', @warning, ' ')" />
+					</span>
+					.
+				</p>
+				<!-- Generating a table of contents. -->
+				<ul>
+					<xsl:apply-templates select="result" mode="toc" />
+				</ul>
+
+			</div>
+			<xsl:apply-templates select="result" mode="detail" />
 		</div>
 	</xsl:template>
-	<xsl:template match="result|spawned">
+	<xsl:template match="result|spawned" mode="toc">
+		<li>
+			<a>
+				<xsl:attribute name="href">
+					<xsl:value-of select="concat('#', generate-id())" />
+				</xsl:attribute>
+				<xsl:value-of select="concat(@method, ' ', @url)" />
+			</a>
+			<ul>
+				<xsl:apply-templates select="spawned" mode="toc" />
+				<xsl:comment>
+					I exist!
+				</xsl:comment>
+			</ul>
+		</li>
+	</xsl:template>
+	<xsl:template match="result|spawned" mode="detail">
 		<xsl:variable name="depth"
 			select="count(ancestor::result) + count(ancestor::spawned)" />
 		<!-- Let's add some padding to distinguish children requests from parents. -->
@@ -61,8 +84,13 @@
 			<xsl:attribute name="class">
 		 		<xsl:value-of select="concat('col-md-', 12 - $depth)" />
 			</xsl:attribute>
-			<xsl:element name="{concat('h', $depth + 1)}">
+			<xsl:element name="{concat('h', $depth + 2)}">
+
+				<xsl:attribute name="id">
+					<xsl:value-of select="generate-id()" />
+				</xsl:attribute>
 				<xsl:value-of select="concat(@method, ' ', @url)" />
+
 			</xsl:element>
 			<p class="text-info">
 				<xsl:value-of
@@ -233,7 +261,7 @@
 					</table>
 				</p>
 			</div>
-			<xsl:apply-templates select="spawned" />
+			<xsl:apply-templates select="spawned" mode="detail" />
 		</div>
 	</xsl:template>
 </xsl:stylesheet>
