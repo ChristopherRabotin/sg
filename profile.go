@@ -274,12 +274,15 @@ func saveResult(profile *Profile, profileFile string) string {
 		}
 		test.Requests = nil
 	}
-	content, err := xml.MarshalIndent(profile, "", "\t")
+	content :=  `<?xml version="1.0" encoding="UTF-8"?>
+	<?xml-stylesheet type="text/xsl" href="https://gist.githubusercontent.com/ChristopherRabotin/15c5343a22061081f2cf/raw/2b66117e1d98474d167e63a5d7f7e8f7a239f2e7/HTMLResult.xsl"?>
+	`
+	pContent, err := xml.MarshalIndent(profile, "", "\t")
 	if err != nil {
 		log.Error("failed %+v", err)
 		return ""
 	}
 	filename := fmt.Sprintf("%s-%s.xml", strings.Replace(profileFile, ".xml", "", -1), time.Now().Format("2006-01-02_1504"))
-	ioutil.WriteFile(filename, content, 0644)
+	ioutil.WriteFile(filename, []byte(content + string(pContent)), 0644)
 	return filename
 }

@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-	<xsl:output method="xml" indent="yes"
-		doctype-public="-//W3C//DTD XHTML 1.0 Strict//EN" />
+	<xsl:output method="xml" indent="yes" media-type="text/html"
+		omit-xml-declaration="yes" doctype-public="-//W3C//DTD XHTML 1.0 Strict//EN" />
+	<!-- Read the children of the style sheet itself -->
+	<xsl:template match="xsl:stylesheet">
+		<xsl:apply-templates />
+	</xsl:template>
+	<xsl:template match="/">
+		<xsl:apply-templates />
+	</xsl:template>
 	<xsl:template match="/Profile">
 		<html>
 			<head>
+				<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 				<title>
 					<xsl:value-of select="@name" />
 					(UID=
@@ -61,9 +69,7 @@
 			</a>
 			<ul>
 				<xsl:apply-templates select="spawned" mode="toc" />
-				<xsl:comment>
-					I exist!
-				</xsl:comment>
+				<xsl:comment/>
 			</ul>
 		</li>
 	</xsl:template>
@@ -76,9 +82,7 @@
 		 		<xsl:value-of select="concat('col-md-', $depth)" />
 			</xsl:attribute>
 			<!-- Adding something to make sure this tag doesn't swallow the next div. -->
-			<xsl:comment>
-				I exist!
-			</xsl:comment>
+			<xsl:comment />
 		</div>
 		<div>
 			<xsl:attribute name="class">

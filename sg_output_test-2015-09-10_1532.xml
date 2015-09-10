@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml-stylesheet type="text/xml" href="#stylesheet"?>
+<!DOCTYPE result [
+<!ATTLIST xsl:stylesheet
+  id    ID  #REQUIRED>
+]>
+<result>
+<xsl:stylesheet id="stylesheet" version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:template match="/result/Profile">
+  <html>
+			<head>
+				<title>
+					<xsl:value-of select="@name" />
+					(UID=
+					<xsl:value-of select="@uid" />
+					)
+				</title>
+				<link
+					href="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.min.css"
+					rel="stylesheet" type="text/css" />
+			</head>
+			<body>
+				<xsl:apply-templates select="test" />
+			</body>
+		</html>
+</xsl:template>
+<xsl:template match="test">
+		<div class="container">
+			<h1>
+				<xsl:value-of select="@name" />
+			</h1>
+			<div class="col-md-12">
+				<p class="text-muted row">
+					<xsl:value-of select="description" />
+				</p>
+				<p class="text-muted row">
+					Critical threshold set to
+					<span class="bg-danger">
+						<xsl:value-of select="concat(' ', @critical, ' ')" />
+					</span>
+					.
+					Warning threshold set to
+					<span class="bg-warning">
+						<xsl:value-of select="concat(' ', @warning, ' ')" />
+					</span>
+					.
+				</p>
+				<!-- Generating a table of contents. -->
+				<ul>
+					<xsl:apply-templates select="result" mode="toc" />
+				</ul>
+
+			</div>
+			<xsl:apply-templates select="result" mode="detail" />
+		</div>
+	</xsl:template>
+	<xsl:template match="result|spawned" mode="toc">
+		<li>
+			<a>
+				<xsl:attribute name="href">
+					<xsl:value-of select="concat('#', generate-id())" />
+				</xsl:attribute>
+				<xsl:value-of select="concat(@method, ' ', @url)" />
+			</a>
+			<ul>
+				<xsl:apply-templates select="spawned" mode="toc" />
+				<xsl:comment/>
+			</ul>
+		</li>
+	</xsl:template>
+	<xsl:template match="result|spawned" mode="detail">
+		<xsl:variable name="depth"
+			select="count(ancestor::result) + count(ancestor::spawned)" />
+		<!-- Let's add some padding to distinguish children requests from parents. -->
+		<div>
+			<xsl:attribute name="class">
+		 		<xsl:value-of select="concat('col-md-', $depth)" />
+			</xsl:attribute>
+			<!-- Adding something to make sure this tag doesn't swallow the next div. -->
+			<xsl:comment />
+		</div>
+		<div>
+			<xsl:attribute name="class">
+		 		<xsl:value-of select="concat('col-md-', 12 - $depth)" />
+			</xsl:attribute>
+			<xsl:element name="{concat('h', $depth + 2)}">
+
+				<xsl:attribute name="id">
+					<xsl:value-of select="generate-id()" />
+				</xsl:attribute>
+				<xsl:value-of select="concat(@method, ' ', @url)" />
+
+			</xsl:element>
+			<p class="text-info">
+				<xsl:value-of
+					select="concat(@concurrency, ' concurrent requests repeated ', @repetitions, ' time(s)')" />
+
+				<xsl:if test="@withCookies='true'">
+					with cookies
+				</xsl:if>
+				<xsl:if test="@withHeaders='true'">
+					with custom headers
+				</xsl:if>
+				<xsl:if test="@withData='true'">
+					with request body
+				</xsl:if>
+			</p>
+			<h5>Status summary</h5>
+			<div class="row">
+				<p class="col-md-10">
+					<table class="table">
+						<tr>
+							<th class="text-center">Status type</th>
+							<td class="text-center">Errored (no response)</td>
+							<td class="text-center">1xx Informational</td>
+							<td class="text-center">2xx Success</td>
+							<td class="text-center">3xx Redirection</td>
+							<td class="text-center">4xx Client Error</td>
+							<td class="text-center">5xx Server Error</td>
+						</tr>
+						<tr>
+							<th class="text-center">Number</th>
+							<td>
+								<xsl:choose>
+									<xsl:when test="statuses/@errored>0">
+										<xsl:attribute name="class">text-danger text-center</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="class">text-success text-center</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+								<xsl:value-of select="statuses/@errored" />
+							</td>
+							<td class="text-info text-center">
+								<xsl:value-of select="statuses/@s1xx" />
+							</td>
+							<td class="text-info text-center">
+								<xsl:value-of select="statuses/@s2xx" />
+							</td>
+							<td class="text-info text-center">
+								<xsl:value-of select="statuses/@s3xx" />
+							</td>
+							<td class="text-info text-center">
+								<xsl:value-of select="statuses/@s4xx" />
+							</td>
+							<td class="text-info text-center">
+								<xsl:value-of select="statuses/@s5xx" />
+							</td>
+						</tr>
+					</table>
+				</p>
+			</div>
+			<h5>Response times</h5>
+			<div class="row">
+				<p class="col-md-6">
+					<table class="table">
+						<tr>
+							<xsl:for-each select="times/*[not(starts-with(local-name(), 'p'))]">
+								<th class="text-center">
+									<xsl:choose>
+										<xsl:when test="@state='nominal'">
+											<xsl:attribute name="class">bg-success text-center</xsl:attribute>
+										</xsl:when>
+										<xsl:when test="@state='warning'">
+											<xsl:attribute name="class">bg-warning text-center</xsl:attribute>
+										</xsl:when>
+										<xsl:when test="@state='critical'">
+											<xsl:attribute name="class">bg-danger text-center</xsl:attribute>
+										</xsl:when>
+									</xsl:choose>
+									<xsl:value-of select="local-name()" />
+								</th>
+							</xsl:for-each>
+						</tr>
+						<tr>
+							<xsl:for-each select="times/*[not(starts-with(local-name(), 'p'))]">
+								<td class="text-center">
+									<xsl:choose>
+										<xsl:when test="@state='nominal'">
+											<xsl:attribute name="class">bg-success text-center</xsl:attribute>
+										</xsl:when>
+										<xsl:when test="@state='warning'">
+											<xsl:attribute name="class">bg-warning text-center</xsl:attribute>
+										</xsl:when>
+										<xsl:when test="@state='critical'">
+											<xsl:attribute name="class">bg-danger text-center</xsl:attribute>
+										</xsl:when>
+									</xsl:choose>
+									<xsl:value-of select="@duration" />
+								</td>
+							</xsl:for-each>
+						</tr>
+					</table>
+				</p>
+			</div>
+			<div class="row">
+				<p class="col-md-10">
+					<table class="table">
+						<tr>
+							<xsl:for-each select="times/*[starts-with(local-name(), 'p')]">
+								<th class="text-center">
+									<xsl:choose>
+										<xsl:when test="@state='nominal'">
+											<xsl:attribute name="class">bg-success text-center</xsl:attribute>
+										</xsl:when>
+										<xsl:when test="@state='warning'">
+											<xsl:attribute name="class">bg-warning text-center</xsl:attribute>
+										</xsl:when>
+										<xsl:when test="@state='critical'">
+											<xsl:attribute name="class">bg-danger text-center</xsl:attribute>
+										</xsl:when>
+									</xsl:choose>
+									<xsl:value-of select="local-name()" />
+								</th>
+							</xsl:for-each>
+						</tr>
+						<tr>
+							<xsl:for-each select="times/*[starts-with(local-name(), 'p')]">
+								<td class="text-center">
+									<xsl:choose>
+										<xsl:when test="@state='nominal'">
+											<xsl:attribute name="class">bg-success text-center</xsl:attribute>
+										</xsl:when>
+										<xsl:when test="@state='warning'">
+											<xsl:attribute name="class">bg-warning text-center</xsl:attribute>
+										</xsl:when>
+										<xsl:when test="@state='critical'">
+											<xsl:attribute name="class">bg-danger text-center</xsl:attribute>
+										</xsl:when>
+									</xsl:choose>
+									<xsl:value-of select="@duration" />
+								</td>
+							</xsl:for-each>
+						</tr>
+					</table>
+				</p>
+			</div>
+			<h5>Status breakdown</h5>
+			<div class="row">
+				<p class="col-md-3">
+					<table class="table table-hover">
+						<thead>
+							<tr>
+								<th class="text-center">Status code</th>
+								<th class="text-center">Number</th>
+							</tr>
+						</thead>
+						<tbody>
+							<xsl:for-each select="status">
+								<tr>
+									<td class="text-center">
+										<xsl:value-of select="@code" />
+									</td>
+									<td class="text-center">
+										<xsl:value-of select="@number" />
+									</td>
+								</tr>
+							</xsl:for-each>
+						</tbody>
+					</table>
+				</p>
+			</div>
+			<xsl:apply-templates select="spawned" mode="detail" />
+		</div>
+	</xsl:template>
+	<xsl:template match="xsl:stylesheet">
+  <!-- ignore -->
+</xsl:template>
+</xsl:stylesheet>
+    
+    <Profile name="Basic example" uid="1" user-agent="StressGauge/0.x">
+	<test name="SG test" critical="1s" warning="750ms">
+		<description>This is the test for SG.</description>
+		<result method="GET" url="http://127.0.0.1:39718/init/" concurrency="1" repetitions="1" withCookies="false" withHeaders="false" withData="false">
+			<times>
+				<mean duration="0" state="nominal"></mean>
+				<shortest duration="82.961093ms" state="nominal"></shortest>
+				<p10 duration="82.961093ms" state="nominal"></p10>
+				<p25 duration="82.961093ms" state="nominal"></p25>
+				<p50 duration="82.961093ms" state="nominal"></p50>
+				<p66 duration="82.961093ms" state="nominal"></p66>
+				<p75 duration="82.961093ms" state="nominal"></p75>
+				<p80 duration="82.961093ms" state="nominal"></p80>
+				<p90 duration="82.961093ms" state="nominal"></p90>
+				<p95 duration="82.961093ms" state="nominal"></p95>
+				<p98 duration="82.961093ms" state="nominal"></p98>
+				<p99 duration="82.961093ms" state="nominal"></p99>
+				<longest duration="82.961093ms" state="nominal"></longest>
+			</times>
+			<status code="200" number="1"></status>
+			<statuses errored="0" s1xx="0" s2xx="1" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			<spawned method="POST" url="http://127.0.0.1:39718/json/" concurrency="10" repetitions="20" withCookies="true" withHeaders="false" withData="true">
+				<times>
+					<mean duration="0" state="nominal"></mean>
+					<shortest duration="26.771487ms" state="nominal"></shortest>
+					<p10 duration="26.797167ms" state="nominal"></p10>
+					<p25 duration="26.835384ms" state="nominal"></p25>
+					<p50 duration="746.844165ms" state="nominal"></p50>
+					<p66 duration="746.880566ms" state="nominal"></p66>
+					<p75 duration="746.905004ms" state="nominal"></p75>
+					<p80 duration="746.916185ms" state="nominal"></p80>
+					<p90 duration="746.942575ms" state="nominal"></p90>
+					<p95 duration="746.955174ms" state="nominal"></p95>
+					<p98 duration="746.955174ms" state="nominal"></p98>
+					<p99 duration="746.955174ms" state="nominal"></p99>
+					<longest duration="746.955174ms" state="nominal"></longest>
+				</times>
+				<status code="204" number="20"></status>
+				<statuses errored="0" s1xx="0" s2xx="20" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</spawned>
+			<spawned method="POST" url="http://127.0.0.1:39718/cookie-fwd/" concurrency="10" repetitions="20" withCookies="true" withHeaders="false" withData="false">
+				<times>
+					<mean duration="0" state="nominal"></mean>
+					<shortest duration="27.966057ms" state="nominal"></shortest>
+					<p10 duration="28.023907ms" state="nominal"></p10>
+					<p25 duration="28.112373ms" state="nominal"></p25>
+					<p50 duration="747.155666ms" state="nominal"></p50>
+					<p66 duration="747.180923ms" state="nominal"></p66>
+					<p75 duration="747.199207ms" state="nominal"></p75>
+					<p80 duration="747.213964ms" state="nominal"></p80>
+					<p90 duration="747.227835ms" state="nominal"></p90>
+					<p95 duration="747.257172ms" state="nominal"></p95>
+					<p98 duration="747.257172ms" state="nominal"></p98>
+					<p99 duration="747.257172ms" state="nominal"></p99>
+					<longest duration="747.257172ms" state="nominal"></longest>
+				</times>
+				<status code="200" number="20"></status>
+				<statuses errored="0" s1xx="0" s2xx="20" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</spawned>
+			<spawned method="POST" url="http://127.0.0.1:39718/header/" concurrency="10" repetitions="20" withCookies="true" withHeaders="true" withData="false">
+				<times>
+					<mean duration="0" state="nominal"></mean>
+					<shortest duration="25.254329ms" state="nominal"></shortest>
+					<p10 duration="26.977614ms" state="nominal"></p10>
+					<p25 duration="27.071534ms" state="nominal"></p25>
+					<p50 duration="746.988683ms" state="nominal"></p50>
+					<p66 duration="747.037138ms" state="nominal"></p66>
+					<p75 duration="747.074631ms" state="nominal"></p75>
+					<p80 duration="747.082444ms" state="nominal"></p80>
+					<p90 duration="747.112443ms" state="nominal"></p90>
+					<p95 duration="747.130266ms" state="nominal"></p95>
+					<p98 duration="747.130266ms" state="nominal"></p98>
+					<p99 duration="747.130266ms" state="nominal"></p99>
+					<longest duration="747.130266ms" state="nominal"></longest>
+				</times>
+				<status code="200" number="20"></status>
+				<statuses errored="0" s1xx="0" s2xx="20" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</spawned>
+		</result>
+		<result method="GET" url="http://127.0.0.1:39718/slow/" concurrency="50" repetitions="100" withCookies="false" withHeaders="false" withData="false">
+			<times>
+				<mean duration="0" state="nominal"></mean>
+				<shortest duration="265.065342ms" state="nominal"></shortest>
+				<p10 duration="266.747642ms" state="nominal"></p10>
+				<p25 duration="266.942476ms" state="nominal"></p25>
+				<p50 duration="835.133451ms" state="warning"></p50>
+				<p66 duration="843.552789ms" state="warning"></p66>
+				<p75 duration="843.696936ms" state="warning"></p75>
+				<p80 duration="843.77658ms" state="warning"></p80>
+				<p90 duration="843.926932ms" state="warning"></p90>
+				<p95 duration="844.00537ms" state="warning"></p95>
+				<p98 duration="851.595657ms" state="warning"></p98>
+				<p99 duration="858.443757ms" state="warning"></p99>
+				<longest duration="858.443757ms" state="warning"></longest>
+			</times>
+			<status code="204" number="12"></status>
+			<status code="104" number="17"></status>
+			<status code="604" number="16"></status>
+			<status code="504" number="24"></status>
+			<status code="404" number="17"></status>
+			<status code="304" number="14"></status>
+			<statuses errored="0" s1xx="17" s2xx="12" s3xx="14" s4xx="17" s5xx="24"></statuses>
+		</result>
+		<result method="GET" url="http://127.0.0.1:39718/204/" concurrency="350" repetitions="10000" withCookies="false" withHeaders="false" withData="false">
+			<times>
+				<mean duration="0" state="nominal"></mean>
+				<shortest duration="259.464µs" state="nominal"></shortest>
+				<p10 duration="655.106µs" state="nominal"></p10>
+				<p25 duration="747.13µs" state="nominal"></p25>
+				<p50 duration="1.236124ms" state="nominal"></p50>
+				<p66 duration="1.312101ms" state="nominal"></p66>
+				<p75 duration="1.368856ms" state="nominal"></p75>
+				<p80 duration="1.417932ms" state="nominal"></p80>
+				<p90 duration="1.801558ms" state="nominal"></p90>
+				<p95 duration="181.693155ms" state="nominal"></p95>
+				<p98 duration="675.306967ms" state="nominal"></p98>
+				<p99 duration="740.68348ms" state="nominal"></p99>
+				<longest duration="881.125959ms" state="warning"></longest>
+			</times>
+			<status code="204" number="672"></status>
+			<statuses errored="9328" s1xx="0" s2xx="672" s3xx="0" s4xx="0" s5xx="0"></statuses>
+		</result>
+		<result method="PUT" url="%!s(MISSING)-not-uri/error/" concurrency="1" repetitions="1" withCookies="false" withHeaders="false" withData="false">
+			<times>
+				<mean duration="0" state="nominal"></mean>
+				<shortest duration="98.328µs" state="nominal"></shortest>
+				<p10 duration="98.328µs" state="nominal"></p10>
+				<p25 duration="98.328µs" state="nominal"></p25>
+				<p50 duration="98.328µs" state="nominal"></p50>
+				<p66 duration="98.328µs" state="nominal"></p66>
+				<p75 duration="98.328µs" state="nominal"></p75>
+				<p80 duration="98.328µs" state="nominal"></p80>
+				<p90 duration="98.328µs" state="nominal"></p90>
+				<p95 duration="98.328µs" state="nominal"></p95>
+				<p98 duration="98.328µs" state="nominal"></p98>
+				<p99 duration="98.328µs" state="nominal"></p99>
+				<longest duration="98.328µs" state="nominal"></longest>
+			</times>
+			<statuses errored="1" s1xx="0" s2xx="0" s3xx="0" s4xx="0" s5xx="0"></statuses>
+		</result>
+	</test>
+</Profile>
+    
+</result>
