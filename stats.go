@@ -62,6 +62,7 @@ type Percentages struct {
 	length    int
 }
 
+// MarshalXML handles the serializing into XML of Percentages.
 func (p *Percentages) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	e.EncodeToken(start)
 	p.MeanValue.MarshalXML(e, xml.StartElement{Name: xml.Name{Local: "mean"}})

@@ -1,16 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="1.0"
+<xsl:stylesheet version="1.0" id="stylesheet"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-	<xsl:output method="xml" indent="yes" media-type="text/html"
-		omit-xml-declaration="yes" doctype-public="-//W3C//DTD XHTML 1.0 Strict//EN" />
-	<!-- Read the children of the style sheet itself -->
 	<xsl:template match="xsl:stylesheet">
-		<xsl:apply-templates />
+		<!-- Ignores the xsl:stylesheet tags. -->
 	</xsl:template>
-	<xsl:template match="/">
-		<xsl:apply-templates />
-	</xsl:template>
-	<xsl:template match="/Profile">
+	<xsl:template match="/sg-result/Profile">
 		<html>
 			<head>
 				<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
@@ -69,7 +62,7 @@
 			</a>
 			<ul>
 				<xsl:apply-templates select="spawned" mode="toc" />
-				<xsl:comment/>
+				<xsl:comment />
 			</ul>
 		</li>
 	</xsl:template>

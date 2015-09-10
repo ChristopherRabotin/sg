@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	//"os"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -147,15 +147,19 @@ func TestStressGauge(t *testing.T) {
 		// Let's now save the profile locally and test that all the information is stored correctly.
 		filename := saveResult(&profile, "sg_output_test")
 		// And let's load this profile and check the values are those of the saved profile.
-		loadedProfile := Profile{}
+		type SGResult struct {
+			LoadedProfile Profile `xml:"Profile"`
+		}
+		rslt := SGResult{}
 		loadedXML, err := ioutil.ReadFile(filename)
 		if err != nil {
 			panic(err)
 		}
-		err = xml.Unmarshal([]byte(loadedXML), &loadedProfile)
+		err = xml.Unmarshal([]byte(loadedXML), &rslt)
 		if err != nil {
 			panic(err)
 		}
+		loadedProfile := rslt.LoadedProfile
 		// Let's check for each request in the test, that the result is identical to that computed before.
 		for rno, res := range profile.Tests[0].Result {
 			So(res.Equals(loadedProfile.Tests[0].Result[rno]), ShouldEqual, true)
@@ -169,7 +173,7 @@ func TestStressGauge(t *testing.T) {
 			}
 		}
 		// Finally let's delete the test file.
-		//os.Remove(filename)
+		os.Remove(filename)
 	})
 }
 
