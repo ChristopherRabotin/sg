@@ -1,0 +1,142 @@
+<Profile name="Basic example" uid="1" user-agent="StressGauge/0.x">
+	<test name="SG test" critical="1s" warning="750ms">
+		<description>This is the test for SG.</description>
+		<result method="GET" url="http://127.0.0.1:49590/init/" concurrency="1" repetitions="1" withCookies="false" withHeaders="false" withData="false">
+			<times>
+				<mean duration="0" state="nominal"></mean>
+				<shortest duration="89.851769ms" state="nominal"></shortest>
+				<p10 duration="89.851769ms" state="nominal"></p10>
+				<p25 duration="89.851769ms" state="nominal"></p25>
+				<p50 duration="89.851769ms" state="nominal"></p50>
+				<p66 duration="89.851769ms" state="nominal"></p66>
+				<p75 duration="89.851769ms" state="nominal"></p75>
+				<p80 duration="89.851769ms" state="nominal"></p80>
+				<p90 duration="89.851769ms" state="nominal"></p90>
+				<p95 duration="89.851769ms" state="nominal"></p95>
+				<p98 duration="89.851769ms" state="nominal"></p98>
+				<p99 duration="89.851769ms" state="nominal"></p99>
+				<longest duration="89.851769ms" state="nominal"></longest>
+			</times>
+			<status code="200" number="1"></status>
+			<statuses errored="0" s1xx="0" s2xx="1" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			<spawned method="POST" url="http://127.0.0.1:49590/cookie-fwd/" concurrency="10" repetitions="20" withCookies="true" withHeaders="false" withData="false">
+				<times>
+					<mean duration="0" state="nominal"></mean>
+					<shortest duration="36.497764ms" state="nominal"></shortest>
+					<p10 duration="42.443859ms" state="nominal"></p10>
+					<p25 duration="53.065182ms" state="nominal"></p25>
+					<p50 duration="946.211082ms" state="warning"></p50>
+					<p66 duration="946.26469ms" state="warning"></p66>
+					<p75 duration="946.482309ms" state="warning"></p75>
+					<p80 duration="946.982079ms" state="warning"></p80>
+					<p90 duration="947.465169ms" state="warning"></p90>
+					<p95 duration="947.491941ms" state="warning"></p95>
+					<p98 duration="947.491941ms" state="warning"></p98>
+					<p99 duration="947.491941ms" state="warning"></p99>
+					<longest duration="947.491941ms" state="warning"></longest>
+				</times>
+				<status code="200" number="20"></status>
+				<statuses errored="0" s1xx="0" s2xx="20" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</spawned>
+			<spawned method="POST" url="http://127.0.0.1:49590/header/" concurrency="10" repetitions="20" withCookies="true" withHeaders="true" withData="false">
+				<times>
+					<mean duration="0" state="nominal"></mean>
+					<shortest duration="35.309988ms" state="nominal"></shortest>
+					<p10 duration="37.642243ms" state="nominal"></p10>
+					<p25 duration="37.82724ms" state="nominal"></p25>
+					<p50 duration="945.834619ms" state="warning"></p50>
+					<p66 duration="960.991993ms" state="warning"></p66>
+					<p75 duration="961.041533ms" state="warning"></p75>
+					<p80 duration="961.065454ms" state="warning"></p80>
+					<p90 duration="961.099739ms" state="warning"></p90>
+					<p95 duration="961.112902ms" state="warning"></p95>
+					<p98 duration="961.112902ms" state="warning"></p98>
+					<p99 duration="961.112902ms" state="warning"></p99>
+					<longest duration="961.112902ms" state="warning"></longest>
+				</times>
+				<status code="200" number="20"></status>
+				<statuses errored="0" s1xx="0" s2xx="20" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</spawned>
+			<spawned method="POST" url="http://127.0.0.1:49590/json/" concurrency="10" repetitions="20" withCookies="true" withHeaders="false" withData="true">
+				<times>
+					<mean duration="0" state="nominal"></mean>
+					<shortest duration="36.55838ms" state="nominal"></shortest>
+					<p10 duration="44.151187ms" state="nominal"></p10>
+					<p25 duration="45.993395ms" state="nominal"></p25>
+					<p50 duration="953.869526ms" state="warning"></p50>
+					<p66 duration="953.922373ms" state="warning"></p66>
+					<p75 duration="955.867384ms" state="warning"></p75>
+					<p80 duration="955.882707ms" state="warning"></p80>
+					<p90 duration="955.917121ms" state="warning"></p90>
+					<p95 duration="955.933485ms" state="warning"></p95>
+					<p98 duration="955.933485ms" state="warning"></p98>
+					<p99 duration="955.933485ms" state="warning"></p99>
+					<longest duration="955.933485ms" state="warning"></longest>
+				</times>
+				<status code="204" number="20"></status>
+				<statuses errored="0" s1xx="0" s2xx="20" s3xx="0" s4xx="0" s5xx="0"></statuses>
+			</spawned>
+		</result>
+		<result method="GET" url="http://127.0.0.1:49590/slow/" concurrency="50" repetitions="100" withCookies="false" withHeaders="false" withData="false">
+			<times>
+				<mean duration="0" state="nominal"></mean>
+				<shortest duration="264.246815ms" state="nominal"></shortest>
+				<p10 duration="265.780123ms" state="nominal"></p10>
+				<p25 duration="266.175412ms" state="nominal"></p25>
+				<p50 duration="1.047521245s" state="critical"></p50>
+				<p66 duration="1.065552477s" state="critical"></p66>
+				<p75 duration="1.06568407s" state="critical"></p75>
+				<p80 duration="1.065763427s" state="critical"></p80>
+				<p90 duration="1.065917743s" state="critical"></p90>
+				<p95 duration="1.065991496s" state="critical"></p95>
+				<p98 duration="1.066034466s" state="critical"></p98>
+				<p99 duration="1.066051478s" state="critical"></p99>
+				<longest duration="1.066051478s" state="critical"></longest>
+			</times>
+			<status code="304" number="16"></status>
+			<status code="604" number="13"></status>
+			<status code="104" number="12"></status>
+			<status code="204" number="25"></status>
+			<status code="404" number="16"></status>
+			<status code="504" number="18"></status>
+			<statuses errored="0" s1xx="12" s2xx="25" s3xx="16" s4xx="16" s5xx="18"></statuses>
+		</result>
+		<result method="GET" url="http://127.0.0.1:49590/204/" concurrency="350" repetitions="10000" withCookies="false" withHeaders="false" withData="false">
+			<times>
+				<mean duration="0" state="nominal"></mean>
+				<shortest duration="516.049µs" state="nominal"></shortest>
+				<p10 duration="859.597µs" state="nominal"></p10>
+				<p25 duration="1.140503ms" state="nominal"></p25>
+				<p50 duration="1.574841ms" state="nominal"></p50>
+				<p66 duration="2.001241ms" state="nominal"></p66>
+				<p75 duration="2.359289ms" state="nominal"></p75>
+				<p80 duration="2.485696ms" state="nominal"></p80>
+				<p90 duration="3.135596ms" state="nominal"></p90>
+				<p95 duration="200.343491ms" state="nominal"></p95>
+				<p98 duration="772.259745ms" state="warning"></p98>
+				<p99 duration="949.082625ms" state="warning"></p99>
+				<longest duration="1.111406654s" state="critical"></longest>
+			</times>
+			<status code="204" number="705"></status>
+			<statuses errored="9295" s1xx="0" s2xx="705" s3xx="0" s4xx="0" s5xx="0"></statuses>
+		</result>
+		<result method="PUT" url="%!s(MISSING)-not-uri/error/" concurrency="1" repetitions="1" withCookies="false" withHeaders="false" withData="false">
+			<times>
+				<mean duration="0" state="nominal"></mean>
+				<shortest duration="102.261µs" state="nominal"></shortest>
+				<p10 duration="102.261µs" state="nominal"></p10>
+				<p25 duration="102.261µs" state="nominal"></p25>
+				<p50 duration="102.261µs" state="nominal"></p50>
+				<p66 duration="102.261µs" state="nominal"></p66>
+				<p75 duration="102.261µs" state="nominal"></p75>
+				<p80 duration="102.261µs" state="nominal"></p80>
+				<p90 duration="102.261µs" state="nominal"></p90>
+				<p95 duration="102.261µs" state="nominal"></p95>
+				<p98 duration="102.261µs" state="nominal"></p98>
+				<p99 duration="102.261µs" state="nominal"></p99>
+				<longest duration="102.261µs" state="nominal"></longest>
+			</times>
+			<statuses errored="1" s1xx="0" s2xx="0" s3xx="0" s4xx="0" s5xx="0"></statuses>
+		</result>
+	</test>
+</Profile>

@@ -16,12 +16,26 @@ func TestPercentages(t *testing.T) {
 			}
 			p := NewPercentages(myslice)
 			for i := 0; i < 100; i++ {
-				So(p.Percentage(i), ShouldEqual, time.Microsecond*time.Duration(i))
+				So(p.Percentage(i).Duration, ShouldEqual, time.Microsecond*time.Duration(i))
 			}
 			So(p.Mean(), ShouldEqual, time.Microsecond*time.Duration(49)+time.Nanosecond*500)
-			b, _ := xml.Marshal(p)
 			So(p.String(), ShouldEqual, `Shortest: 1µs Median: 50µs Q3: 75µs P95: 95µs Longest: 99µs`)
-			So(string(b), ShouldEqual, `<Percentages mean="49.5µs" shortest="1µs" p10="10µs" p25="25µs" p50="50µs" p66="66µs" p75="75µs" p80="80µs" p90="90µs" p95="95µs" p98="98µs" p99="99µs" longest="99µs"></Percentages>`)
+			p.SetState(time.Nanosecond, time.Second)
+			for i := 1; i < 100; i++ {
+				So(p.vals[i].State, ShouldEqual, "critical")
+			}
+			p.SetState(time.Microsecond*time.Duration(75), time.Microsecond*time.Duration(50))
+			for i := 1; i < 50; i++ {
+				So(p.vals[i].State, ShouldEqual, "nominal")
+			}
+			for i := 50; i < 75; i++ {
+				So(p.vals[i].State, ShouldEqual, "warning")
+			}
+			for i := 75; i < 100; i++ {
+				So(p.vals[i].State, ShouldEqual, "critical")
+			}
+			b, _ := xml.Marshal(p)
+			So(string(b), ShouldEqual, `<Percentages><mean duration="49.5µs" state="nominal"></mean><shortest duration="0" state="nominal"></shortest><p10 duration="10µs" state="nominal"></p10><p25 duration="25µs" state="nominal"></p25><p50 duration="50µs" state="warning"></p50><p66 duration="66µs" state="warning"></p66><p75 duration="75µs" state="critical"></p75><p80 duration="80µs" state="critical"></p80><p90 duration="90µs" state="critical"></p90><p95 duration="95µs" state="critical"></p95><p98 duration="98µs" state="critical"></p98><p99 duration="99µs" state="critical"></p99><longest duration="99µs" state="critical"></longest></Percentages>`)
 			So(func() { p.Percentage(-1) }, ShouldPanic)
 		})
 	})
