@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -30,11 +31,11 @@ func TestURL(t *testing.T) {
 				So(u.Validate, ShouldPanic)
 			})
 			Convey("Choices have a min and max", func() {
-				u := URLToken{Choices: "Val1|Val2", Token: "test", MinLength: 1}
+				u := URLToken{Choices: "Val1|Val2", Token: "test", Min: 1}
 				So(u.Validate, ShouldNotPanic)
-				u = URLToken{Choices: "Val1|Val2", Token: "test", MaxLength: 1}
+				u = URLToken{Choices: "Val1|Val2", Token: "test", Max: 1}
 				So(u.Validate, ShouldNotPanic)
-				u = URLToken{Choices: "Val1|Val2", Token: "test", MinLength: 1, MaxLength: 2}
+				u = URLToken{Choices: "Val1|Val2", Token: "test", Min: 1, Max: 2}
 				So(u.Validate, ShouldNotPanic)
 			})
 			Convey("Token is not defined", func() {
@@ -50,15 +51,15 @@ func TestURL(t *testing.T) {
 				So(u.Validate, ShouldPanic)
 			})
 			Convey("Min is greater than max", func() {
-				u := URLToken{Pattern: "alpha", MinLength: 10, MaxLength: 5, Token: "test"}
+				u := URLToken{Pattern: "alpha", Min: 10, Max: 5, Token: "test"}
 				So(u.Validate, ShouldPanic)
 			})
 			Convey("Min and max are negative", func() {
-				u := URLToken{Pattern: "alpha", MinLength: -10, MaxLength: 5, Token: "test"}
+				u := URLToken{Pattern: "alpha", Min: -10, Max: 5, Token: "test"}
 				So(u.Validate, ShouldPanic)
-				u = URLToken{Pattern: "alpha", MinLength: 10, MaxLength: -5, Token: "test"}
+				u = URLToken{Pattern: "alpha", Min: 10, Max: -5, Token: "test"}
 				So(u.Validate, ShouldPanic)
-				u = URLToken{Pattern: "alpha", MinLength: 10, MaxLength: -5, Token: "test"}
+				u = URLToken{Pattern: "alpha", Min: 10, Max: -5, Token: "test"}
 				So(u.Validate, ShouldPanic)
 			})
 		})
@@ -67,7 +68,7 @@ func TestURL(t *testing.T) {
 			example := `<url base="http://example.org:1598/expensive/token1-token2/token3/token4">
 					<token token="token1" choices="Val1|Val2" />
 					<token token="token2" pattern="alpha" min="5" max="10" />
-					<token token="token3" pattern="num" min="5" max="10" />
+					<token token="token3" pattern="num" min="5" max="1000" />
 					<token token="token4" pattern="alphanum" min="5" max="10" />
 				</url>`
 			out := URL{}
@@ -79,14 +80,14 @@ func TestURL(t *testing.T) {
 				case "token1":
 					So(tok.Choices, ShouldEqual, "Val1|Val2")
 					So(tok.Pattern, ShouldEqual, "")
-					So(tok.MinLength, ShouldEqual, 0)
-					So(tok.MaxLength, ShouldEqual, 0)
+					So(tok.Min, ShouldEqual, 0)
+					So(tok.Max, ShouldEqual, 0)
 					So(tok.Generate(), ShouldBeIn, []string{"Val1", "Val2"})
 				case "token2":
 					So(tok.Choices, ShouldEqual, "")
 					So(tok.Pattern, ShouldEqual, "alpha")
-					So(tok.MinLength, ShouldEqual, 5)
-					So(tok.MaxLength, ShouldEqual, 10)
+					So(tok.Min, ShouldEqual, 5)
+					So(tok.Max, ShouldEqual, 10)
 					matched, err := regexp.MatchString("[A-Za-z]{5,10}", tok.Generate())
 					So(err, ShouldEqual, nil)
 					So(matched, ShouldEqual, true)
@@ -94,17 +95,21 @@ func TestURL(t *testing.T) {
 				case "token3":
 					So(tok.Choices, ShouldEqual, "")
 					So(tok.Pattern, ShouldEqual, "num")
-					So(tok.MinLength, ShouldEqual, 5)
-					So(tok.MaxLength, ShouldEqual, 10)
-					matched, err := regexp.MatchString("[0-9]{5,10}", tok.Generate())
+					So(tok.Min, ShouldEqual, 5)
+					So(tok.Max, ShouldEqual, 1000)
+					matched, err := regexp.MatchString("[0-9]{1,4}", tok.Generate())
 					So(err, ShouldEqual, nil)
 					So(matched, ShouldEqual, true)
 					So(tok.Generate(), ShouldNotEqual, tok.Generate())
+					numTok, convErr := strconv.Atoi(tok.Generate())
+					So(convErr, ShouldBeNil)
+					So(numTok, ShouldBeGreaterThanOrEqualTo, 5)
+					So(numTok, ShouldBeLessThan, 1000)
 				case "token4":
 					So(tok.Choices, ShouldEqual, "")
 					So(tok.Pattern, ShouldEqual, "alphanum")
-					So(tok.MinLength, ShouldEqual, 5)
-					So(tok.MaxLength, ShouldEqual, 10)
+					So(tok.Min, ShouldEqual, 5)
+					So(tok.Max, ShouldEqual, 10)
 					matched, err := regexp.MatchString("[A-Za-z0-9]{5,10}", tok.Generate())
 					So(err, ShouldEqual, nil)
 					So(matched, ShouldEqual, true)
@@ -112,7 +117,7 @@ func TestURL(t *testing.T) {
 				}
 			}
 			So(out.Validate, ShouldNotPanic)
-			pattern := "http://example.org:1598/expensive/(Val1|Val2)-[A-Za-z]{5,10}/[0-9]{5,10}/[A-Za-z0-9]{5,10}"
+			pattern := "http://example.org:1598/expensive/(Val1|Val2)-[A-Za-z]{5,10}/[0-9]{1,4}/[A-Za-z0-9]{5,10}"
 			matched, err := regexp.MatchString(pattern, out.Generate())
 			So(err, ShouldEqual, nil)
 			So(matched, ShouldEqual, true)
