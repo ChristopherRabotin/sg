@@ -8,7 +8,6 @@ import (
 	"github.com/franela/goreq"
 	"github.com/jmcvetta/randutil"
 	"io/ioutil"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -98,11 +97,11 @@ func (u URL) String() (url string) {
 
 // URLToken handles the generate of tokens for the URL.
 type URLToken struct {
-	Token     string `xml:"token,attr"`
-	Choices   string `xml:"choices,attr"`
-	Pattern   string `xml:"pattern,attr"`
-	MinLength int    `xml:"min,attr"`
-	MaxLength int    `xml:"max,attr"`
+	Token   string `xml:"token,attr"`
+	Choices string `xml:"choices,attr"`
+	Pattern string `xml:"pattern,attr"`
+	Min     int    `xml:"min,attr"`
+	Max     int    `xml:"max,attr"`
 }
 
 // Validate checks that the definition of this token is met, and panics otherwise.
@@ -117,7 +116,7 @@ func (t URLToken) Validate() {
 		if !strings.Contains(t.Choices, "|") {
 			panic(fmt.Errorf("choices %s does not contain any separator (|)", t.Choices))
 		}
-		if t.MinLength != 0 || t.MaxLength != 0 {
+		if t.Min != 0 || t.Max != 0 {
 			log.Warning("min and max definitions have no effect in URL Tokens of type Choice")
 		}
 	}
@@ -125,10 +124,10 @@ func (t URLToken) Validate() {
 		if t.Pattern != "num" && t.Pattern != "alpha" && t.Pattern != "alphanum" {
 			panic(fmt.Errorf("unknown pattern %s in URL Token", t.Pattern))
 		}
-		if t.MinLength < 0 || t.MaxLength < 0 {
+		if t.Min < 0 || t.Max < 0 {
 			panic("min or max is negative in URL Token")
 		}
-		if t.MinLength > t.MaxLength {
+		if t.Min > t.Max {
 			panic("min definition is greater than max definition in URL Token")
 		}
 	}
@@ -141,11 +140,11 @@ func (t URLToken) Generate() (r string) {
 	}
 	switch t.Pattern {
 	case "alpha":
-		r, _ = randutil.StringRange(t.MinLength, t.MaxLength, randutil.Alphabet)
+		r, _ = randutil.StringRange(t.Min, t.Max, randutil.Alphabet)
 	case "alphanum":
-		r, _ = randutil.AlphaStringRange(t.MinLength, t.MaxLength)
+		r, _ = randutil.AlphaStringRange(t.Min, t.Max)
 	case "num":
-		rInt, _ := randutil.IntRange(int(math.Pow10(t.MinLength)), int(math.Pow10(t.MaxLength)))
+		rInt, _ := randutil.IntRange(t.Min, t.Max)
 		r = strconv.FormatInt(int64(rInt), 10)
 	}
 	return
@@ -157,11 +156,11 @@ func (t URLToken) String() string {
 	}
 	switch t.Pattern {
 	case "alpha":
-		return fmt.Sprintf("[A-Za-z]{%d,%d}", t.MinLength, t.MaxLength)
+		return fmt.Sprintf("[A-Za-z]{%d,%d}", t.Min, t.Max)
 	case "alphanum":
-		return fmt.Sprintf("[A-Za-z0-9]{%d,%d}", t.MinLength, t.MaxLength)
+		return fmt.Sprintf("[A-Za-z0-9]{%d,%d}", t.Min, t.Max)
 	case "num":
-		return fmt.Sprintf("[0-9]{%d,%d}", t.MinLength, t.MaxLength)
+		return fmt.Sprintf("[0-9]{%d,%d}", len(strconv.Itoa(t.Min)), len(strconv.Itoa(t.Max)))
 	}
 	return "" // can't happen
 }
