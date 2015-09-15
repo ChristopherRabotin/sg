@@ -43,7 +43,7 @@
 		<div class="container">
 			<h1>
 				<xsl:attribute name="id">
-					<xsl:value-of select="generate-id(.)" />
+					<xsl:value-of select="generate-id()" />
 				</xsl:attribute>
 				<xsl:value-of select="@name" />
 			</h1>
