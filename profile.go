@@ -310,23 +310,43 @@ func xmlOutputStylesheet() string {
 			<head>
 				<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 				<title>
-					<xsl:value-of select="@name" />
-					(UID=
-					<xsl:value-of select="@uid" />
-					)
+					<xsl:value-of select="concat(@name, '(UID=', @uid, ')')" />
 				</title>
 				<link
 					href="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.min.css"
 					rel="stylesheet" type="text/css" />
 			</head>
 			<body>
-				<xsl:apply-templates select="test" />
+				<div class="container">
+					<div class="row">
+						<h1>Tests</h1>
+						<div class="col-md-12">
+							<ul>
+								<xsl:apply-templates select="test" mode="toc" />
+							</ul>
+						</div>
+					</div>
+				</div>
+				<xsl:apply-templates select="test" mode="detail" />
 			</body>
 		</html>
 	</xsl:template>
-	<xsl:template match="test">
+	<xsl:template match="test" mode="toc">
+		<li>
+			<a>
+				<xsl:attribute name="href">
+					<xsl:value-of select="concat('#', generate-id())" />
+				</xsl:attribute>
+				<xsl:value-of select="@name" />
+			</a>
+		</li>
+	</xsl:template>
+	<xsl:template match="test" mode="detail">
 		<div class="container">
 			<h1>
+				<xsl:attribute name="id">
+					<xsl:value-of select="generate-id(.)" />
+				</xsl:attribute>
 				<xsl:value-of select="@name" />
 			</h1>
 			<div class="col-md-12">

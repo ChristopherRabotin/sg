@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	//"os"
 	"strings"
 	"testing"
 	"time"
@@ -173,7 +173,7 @@ func TestStressGauge(t *testing.T) {
 			}
 		}
 		// Finally let's delete the test file.
-		os.Remove(filename)
+		//os.Remove(filename)
 	})
 }
 
