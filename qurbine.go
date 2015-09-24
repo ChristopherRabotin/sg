@@ -102,9 +102,13 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 	for rno := 1; rno <= r.Repeat; rno++ {
 		go func(no int, greq goreq.Request) {
 			r.ongoingReqs <- struct{}{} // Adding sentinel value to limit concurrency.
-			startTime := time.Now()
 			greq.Uri = r.URL.Generate()
-			gresp, err := greq.Do()
+			var duration time.Duration
+			gresp, err := func(dur *time.Duration) (gresp *goreq.Response, err error) {
+				defer func(startTime time.Time) { *dur = time.Now().Sub(startTime) }(time.Now())
+				return greq.Do()
+			}(&duration)
+
 			if err != nil {
 				log.Critical("could not send request to #%d %s: %s", no, r.URL, err)
 			} else if no < r.Repeat {
@@ -112,7 +116,7 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 				gresp.Body.Close()
 			}
 			<-r.ongoingReqs // We're done, let's make room for the next request.
-			resp := Response{Response: gresp, duration: time.Now().Sub(startTime)}
+			resp := Response{Response: gresp, duration: duration}
 			// Let's add that request to the list of completed requests.
 			r.doneChan <- &resp
 			runtime.Gosched()
