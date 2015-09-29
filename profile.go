@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/franela/goreq"
 	"github.com/jmcvetta/randutil"
 	"io/ioutil"
 	"regexp"
@@ -180,7 +179,7 @@ func (t Tokenized) IsUsed() bool {
 
 // Format returns the tokenized's data from a given response.
 // Note: this does not use a pointer to not overwrite the initial Data.
-func (t Tokenized) Format(resp *goreq.Response) (formatted string) {
+func (t Tokenized) Format(resp *Response) (formatted string) {
 	formatted = t.Data
 	if !t.IsUsed() {
 		return
@@ -192,7 +191,7 @@ func (t Tokenized) Format(resp *goreq.Response) (formatted string) {
 	if t.Cookie != "" {
 		// Setting the data from the cookies.
 		cookies := map[string]string{}
-		for _, cookie := range resp.Cookies() {
+		for _, cookie := range resp.cookies {
 			cookies[cookie.Name] = cookie.Value
 		}
 		re := regexp.MustCompile(fmt.Sprintf("(?:%s/)([A-Za-z0-9-_]+)", t.Cookie))
@@ -204,20 +203,16 @@ func (t Tokenized) Format(resp *goreq.Response) (formatted string) {
 		// Setting the data from the header.
 		re := regexp.MustCompile(fmt.Sprintf("(?:%s/)([A-Za-z0-9-_]+)", t.Header))
 		for _, match := range re.FindAllStringSubmatch(formatted, -1) {
-			formatted = strings.Replace(formatted, match[0], resp.Header.Get(match[1]), -1)
+			formatted = strings.Replace(formatted, match[0], resp.header.Get(match[1]), -1)
 		}
 	}
 	if t.Response != "" {
-		// Changing the values based on the response.
-		// The following allow us to only decode the data we need as a string (and hoping it is).
-		jsonResp := map[string]json.RawMessage{}
-		resp.Body.FromJsonTo(&jsonResp)
 		re := regexp.MustCompile(fmt.Sprintf("(?:%s/)([A-Za-z0-9-_]+)", t.Response))
 		for _, match := range re.FindAllStringSubmatch(formatted, -1) {
 			var value string
-			err := json.Unmarshal(jsonResp[match[1]], &value)
+			err := json.Unmarshal(resp.JSON[match[1]], &value)
 			if err != nil {
-				log.Warning(fmt.Sprintf("could not convert response JSON field `%s` to a string: %s | json = %s", match[1], err, jsonResp))
+				log.Warning(fmt.Sprintf("could not convert response JSON field `%s` to a string: %s | json = %s", match[1], err, resp.JSON))
 			}
 			formatted = strings.Replace(formatted, match[0], string(value), -1)
 		}

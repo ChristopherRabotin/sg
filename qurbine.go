@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/franela/goreq"
+	"net/http"
 	"runtime"
 	"strings"
 	"sync"
@@ -48,7 +50,7 @@ func (r *Request) Validate() {
 }
 
 // Spawn sends the actual request.
-func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
+func (r *Request) Spawn(parent *Response, wg *sync.WaitGroup) {
 	body := ""
 	if r.Data != nil {
 		body = r.Data.Format(parent)
@@ -67,8 +69,8 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 	}
 	// Let's also add the cookies.
 	if r.FwdCookies && parent != nil {
-		if parent.Cookies() != nil {
-			for _, delicacy := range parent.Cookies() {
+		if parent.cookies != nil {
+			for _, delicacy := range parent.cookies {
 				greq.AddCookie(delicacy)
 			}
 		}
@@ -103,20 +105,17 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 		go func(no int, greq goreq.Request) {
 			r.ongoingReqs <- struct{}{} // Adding sentinel value to limit concurrency.
 			greq.Uri = r.URL.Generate()
-			var duration time.Duration
-			gresp, err := func(dur *time.Duration) (gresp *goreq.Response, err error) {
-				defer func(startTime time.Time) { *dur = time.Now().Sub(startTime) }(time.Now())
-				return greq.Do()
-			}(&duration)
+			resp := Response{}
 
+			startTime := time.Now()
+			gresp, err := greq.Do()
+			resp.FromGoResp(gresp, err, startTime)
 			if err != nil {
 				log.Critical("could not send request to #%d %s: %s", no, r.URL, err)
-			} else if no < r.Repeat {
-				// We're always using the last response for the next batch of requests.
-				gresp.Body.Close()
 			}
+
 			<-r.ongoingReqs // We're done, let's make room for the next request.
-			resp := Response{Response: gresp, duration: duration}
+			resp.duration = time.Since(startTime)
 			// Let's add that request to the list of completed requests.
 			r.doneChan <- &resp
 			runtime.Gosched()
@@ -127,23 +126,12 @@ func (r *Request) Spawn(parent *goreq.Response, wg *sync.WaitGroup) {
 	// and spawns all the children.
 	go func() {
 		r.doneWg.Wait()
-		// We don't need the parent response anymore, so let's close it.
-		if parent != nil && parent.Response != nil && parent.Response.Body != nil {
-			parent.Response.Body.Close()
-		}
-
-		// Now that we have spawned all the children, let's close all the bodies but the one used in children.
-		for i := 1; i < len(r.doneReqs); i++ {
-			if r.doneReqs[i].Response != nil && r.doneReqs[i].Response.Body != nil {
-				r.doneReqs[i].Response.Body.Close()
-			}
-		}
 
 		if r.Children != nil {
 			log.Debug("Spawning children for %s.", r.URL)
 			for _, child := range r.Children {
 				// Note that we always use the LAST response as the parent response.
-				child.Spawn(r.doneReqs[0].Response, wg)
+				child.Spawn(r.doneReqs[0], wg)
 			}
 		}
 		log.Debug("Computing result of %s.", r.URL)
@@ -160,17 +148,17 @@ func (r *Request) ComputeResult(wg *sync.WaitGroup) {
 	for _, response := range r.doneReqs {
 		totalSentRequests++
 		times = append(times, response.duration)
-		if response.Response == nil {
+		if response.statusCode == -1 {
 			// An error occurred when executing this request.
 			summary.None++
 		} else {
-			if val, exists := statuses[response.Response.StatusCode]; exists {
+			if val, exists := statuses[response.statusCode]; exists {
 				val.Count++
-				statuses[response.Response.StatusCode] = val
+				statuses[response.statusCode] = val
 			} else {
-				statuses[response.Response.StatusCode] = Status{Code: response.Response.StatusCode, Count: 1}
+				statuses[response.statusCode] = Status{Code: response.statusCode, Count: 1}
 			}
-			switch response.Response.StatusCode / 100 {
+			switch response.statusCode / 100 {
 			case 1:
 				summary.S1xx++
 			case 2:
@@ -182,7 +170,7 @@ func (r *Request) ComputeResult(wg *sync.WaitGroup) {
 			case 5:
 				summary.S5xx++
 			default:
-				log.Warning("Unsupported status code %d received.", response.Response.StatusCode)
+				log.Warning("Unsupported status code %d received.", response.statusCode)
 			}
 		}
 		wg.Done()
@@ -238,8 +226,27 @@ func setParentRequest(parent *Request, children []*Request) {
 
 // Response extends a goreq.Response with a duration.
 type Response struct {
-	*goreq.Response
-	duration time.Duration
+	statusCode    int
+	contentLength int64
+	header        http.Header
+	cookies       []*http.Cookie
+	JSON          map[string]json.RawMessage
+	duration      time.Duration
+}
+
+func (resp *Response) FromGoResp(gresp *goreq.Response, err error, startTime time.Time) {
+	if err == nil {
+		gresp.Body.FromJsonTo(&resp.JSON)
+		gresp.Body.Close() // We can now close the body.
+		resp.statusCode = gresp.StatusCode
+		resp.contentLength = gresp.ContentLength
+		resp.cookies = gresp.Cookies()
+		// Copying the headers.
+		resp.header = gresp.Header
+	} else {
+		resp.statusCode = -1
+		resp.contentLength = -1
+	}
 }
 
 // Result store the result of a group of requests (as define by its concurrency and repetition).
