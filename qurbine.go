@@ -110,6 +110,7 @@ func (r *Request) Spawn(parent *Response, wg *sync.WaitGroup) {
 			startTime := time.Now()
 			gresp, err := greq.Do()
 			resp.FromGoResp(gresp, err, startTime)
+			gresp = nil
 			if err != nil {
 				log.Critical("could not send request to #%d %s: %s", no, r.URL, err)
 			}
