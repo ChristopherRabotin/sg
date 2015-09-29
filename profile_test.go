@@ -237,9 +237,11 @@ func TestTokenized(t *testing.T) {
 						</headers>`
 			out := Tokenized{}
 			xml.Unmarshal([]byte(example), &out)
-			resp, _ := goreq.Request{Uri: ts.URL + "/test"}.Do()
+			gresp, _ := goreq.Request{Uri: ts.URL + "/test"}.Do()
+			resp := Response{}
+			resp.FromGoResp(gresp, nil, time.Now())
 			expectations := []string{"", "X-Fool:NotAMonkey shame on you", "Cookie:test=true;session_id=42", "Some-Header:Custom Header", "X-Cannot-Decode:", ""}
-			for pos, line := range strings.Split(out.Format(resp), "\n") {
+			for pos, line := range strings.Split(out.Format(&resp), "\n") {
 				So(strings.TrimSpace(line), ShouldEqual, expectations[pos])
 			}
 			So(out.String(), ShouldEqual, "{Tokenized with cookie with header with data}")
