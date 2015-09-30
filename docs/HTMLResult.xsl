@@ -20,12 +20,16 @@
 						<h1>Tests</h1>
 						<div class="col-md-12">
 							<ul>
-								<xsl:apply-templates select="test" mode="toc" />
+								<xsl:apply-templates select="test" mode="toc">
+									<xsl:sort select="@name" data-type="text" order="ascending"/>
+								</xsl:apply-templates>
 							</ul>
 						</div>
 					</div>
 				</div>
-				<xsl:apply-templates select="test" mode="detail" />
+				<xsl:apply-templates select="test" mode="detail">
+					<xsl:sort select="@name" data-type="text" order="ascending"/>
+				</xsl:apply-templates>
 			</body>
 		</html>
 	</xsl:template>
@@ -65,11 +69,15 @@
 				</p>
 				<!-- Generating a table of contents. -->
 				<ul>
-					<xsl:apply-templates select="result" mode="toc" />
+					<xsl:apply-templates select="result" mode="toc">
+						<xsl:sort select="@url" data-type="text" order="ascending"/>
+					</xsl:apply-templates>
 				</ul>
 
 			</div>
-			<xsl:apply-templates select="result" mode="detail" />
+			<xsl:apply-templates select="result" mode="detail">
+				<xsl:sort select="@url" data-type="text" order="ascending"/>
+			</xsl:apply-templates>
 		</div>
 	</xsl:template>
 	<xsl:template match="result|spawned" mode="toc">
@@ -81,7 +89,9 @@
 				<xsl:value-of select="concat(@method, ' ', @url)" />
 			</a>
 			<ul>
-				<xsl:apply-templates select="spawned" mode="toc" />
+				<xsl:apply-templates select="spawned" mode="toc">
+					<xsl:sort select="@url" data-type="text" order="ascending"/>
+				</xsl:apply-templates>
 				<xsl:comment />
 			</ul>
 		</li>
@@ -265,6 +275,7 @@
 						</thead>
 						<tbody>
 							<xsl:for-each select="status">
+						        <xsl:sort select="@code" data-type="number" order="ascending"/>
 								<tr>
 									<td class="text-center">
 										<xsl:value-of select="@code" />
@@ -278,7 +289,9 @@
 					</table>
 				</p>
 			</div>
-			<xsl:apply-templates select="spawned" mode="detail" />
+			<xsl:apply-templates select="spawned" mode="detail">
+				<xsl:sort select="@url" data-type="text" order="ascending"/>
+			</xsl:apply-templates>
 		</div>
 	</xsl:template>
 </xsl:stylesheet>
