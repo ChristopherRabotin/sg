@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 type GETTestJSON struct {
@@ -51,8 +52,8 @@ func TestStressGauge(t *testing.T) {
 						if cookie.Value != "42" {
 							returnFailure("cookie value not 42", w, t)
 						}
-						marsh, err := json.Marshal(GETTestJSON{URL: r.URL.String()})
-						serveErrorOrBytes(w, err, marsh, t)
+						marsh, merr := json.Marshal(GETTestJSON{URL: r.URL.String()})
+						serveErrorOrBytes(w, merr, marsh, t)
 					} else {
 						returnFailure(fmt.Sprintf("cookie error: %s", err), w, t)
 					}
@@ -123,7 +124,7 @@ func TestStressGauge(t *testing.T) {
 								<url base="%s-not-uri/error/" />
 							</request>
 						</test>
-					</sg>`, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL)
+					</sg>`, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL, ts.URL)
 		profile := Profile{}
 		err := xml.Unmarshal([]byte(profileData), &profile)
 		if err != nil {

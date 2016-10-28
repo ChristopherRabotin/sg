@@ -99,7 +99,7 @@ func (p *Percentages) Swap(i, j int) {
 // Percentage returns the items in position X.
 func (p *Percentages) Percentage(v int) *Duration {
 	if v < 0 || v > 100 {
-		panic(fmt.Errorf("incorrect value requested %f", v))
+		panic(fmt.Errorf("incorrect value requested %d", v))
 	}
 	if v == 0 {
 		return p.vals[0]

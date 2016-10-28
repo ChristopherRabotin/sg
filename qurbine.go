@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/franela/goreq"
 	"net/http"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/franela/goreq"
 )
 
 // Request stores the request as XML.
@@ -110,7 +111,6 @@ func (r *Request) Spawn(parent *Response, wg *sync.WaitGroup) {
 			startTime := time.Now()
 			gresp, err := greq.Do()
 			resp.FromGoResp(gresp, err, startTime)
-			gresp = nil
 			if err != nil {
 				log.Critical("could not send request to #%d %s: %s", no, r.URL, err)
 			}
@@ -235,6 +235,7 @@ type Response struct {
 	duration      time.Duration
 }
 
+// FromGoResp initializes the Response from a goreq.Response.
 func (resp *Response) FromGoResp(gresp *goreq.Response, err error, startTime time.Time) {
 	if err == nil {
 		gresp.Body.FromJsonTo(&resp.JSON)

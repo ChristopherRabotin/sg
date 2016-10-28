@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/xml"
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestPercentages(t *testing.T) {
@@ -35,7 +36,7 @@ func TestPercentages(t *testing.T) {
 				So(p.vals[i].State, ShouldEqual, "critical")
 			}
 			b, _ := xml.Marshal(p)
-			So(string(b), ShouldEqual, `<Percentages><mean duration="49.5µs" state="nominal"></mean><shortest duration="0" state="nominal"></shortest><p10 duration="10µs" state="nominal"></p10><p25 duration="25µs" state="nominal"></p25><p50 duration="50µs" state="warning"></p50><p66 duration="66µs" state="warning"></p66><p75 duration="75µs" state="critical"></p75><p80 duration="80µs" state="critical"></p80><p90 duration="90µs" state="critical"></p90><p95 duration="95µs" state="critical"></p95><p98 duration="98µs" state="critical"></p98><p99 duration="99µs" state="critical"></p99><longest duration="99µs" state="critical"></longest></Percentages>`)
+			So(string(b), ShouldEqual, `<Percentages><mean duration="49.5µs" state="nominal"></mean><shortest duration="0s" state="nominal"></shortest><p10 duration="10µs" state="nominal"></p10><p25 duration="25µs" state="nominal"></p25><p50 duration="50µs" state="warning"></p50><p66 duration="66µs" state="warning"></p66><p75 duration="75µs" state="critical"></p75><p80 duration="80µs" state="critical"></p80><p90 duration="90µs" state="critical"></p90><p95 duration="95µs" state="critical"></p95><p98 duration="98µs" state="critical"></p98><p99 duration="99µs" state="critical"></p99><longest duration="99µs" state="critical"></longest></Percentages>`)
 			So(func() { p.Percentage(-1) }, ShouldPanic)
 		})
 	})
