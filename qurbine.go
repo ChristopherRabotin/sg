@@ -27,7 +27,7 @@ type Request struct {
 	Data        *Tokenized     `xml:"data"`                  // Data to send.
 	Result      *Result        `xml:"result"`
 	ongoingReqs chan struct{}  // Channel of ongoing requests.
-	doneChan    chan *Response // Channel of responses to buffer them prior to transfering them to doneReqs.
+	doneChan    chan *Response // Channel of responses to buffer them prior to transferring them to doneReqs.
 	doneReqs    []*Response    // List of responses.
 	doneWg      sync.WaitGroup // Wait group of the completed requests.
 }
