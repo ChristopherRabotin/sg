@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
-	"github.com/franela/goreq"
-	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -12,6 +10,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/franela/goreq"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestURL(t *testing.T) {
@@ -207,9 +208,7 @@ func TestTokenized(t *testing.T) {
 	Convey("Tokenizing data from a request works as expected", t, func() {
 		// Let's setup a test server.
 		var ts *httptest.Server
-		var requestHeaders http.Header
 		ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requestHeaders = r.Header
 			if r.Method == "GET" && r.URL.Path == "/test" {
 				defer r.Body.Close()
 				w.Header().Add("X-Custom-Hdr", "Custom Header")
